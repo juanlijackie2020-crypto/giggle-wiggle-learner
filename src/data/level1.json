@@ -1,0 +1,8 @@
+{
+ "id":"forest-amber","title":"森林琥珀保卫战","reward":{"woodBlocks":10},
+ "questions":[
+  {"id":"add-3-4","text":"3 + 4 = ?","options":[6,7,8,5],"answer":7,"hint":"先放 3 颗琥珀，再放 4 颗，一起数一数。","dots":[3,4],"operation":"+"},
+  {"id":"subtract-9-5","text":"9 − 5 = ?","options":[3,5,4,6],"answer":4,"hint":"9 颗琥珀拿走 5 颗，还剩几颗？","dots":[9,5],"operation":"−"},
+  {"id":"add-6-2","text":"6 + 2 = ?","options":[9,6,7,8],"answer":8,"hint":"从 6 开始，再往后数两下：7、8。","dots":[6,2],"operation":"+"}
+ ]
+}

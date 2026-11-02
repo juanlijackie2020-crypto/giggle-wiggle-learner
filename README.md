@@ -1,18 +1,97 @@
-# Wordwood
-A desktop-first 3D English-learning prototype for a beginner, designed for parent and child to play together.
+# 骞骞的学习方块世界 · 第一关
 
-## Run
-Requires Node.js 22.12+ (validated with Node 24).
+**森林琥珀保卫战（Forest Amber Defense）**：真正的第三人称 WebGL 3D 森林冒险 MVP，只实现第一关，没有其余五关。原创几何体 Voxel 美术，无后端、账号或付费 API。
 
-```sh
-npm ci --cache /tmp/wordwood-npm
-npm run dev -- --port 5173
-```
+> 产品基线限制：本次检出与 GitHub main 都没有 `docs/PRD.md` 或六关全景图。用户说明 PRD 在另一个对话，本环境无法读取。当前实现依据本任务列出的第一关规格；尚未对照 V3.0 PRD/全景图验收，不将此文档冒充 PRD。
 
-Use WASD or arrow keys to walk, drag the scene to rotate the camera, and click monsters or location buttons for optional activities. Choose a block colour and place blocks next to the explorer, or build a starter house. New vocabulary and sound activities reward gems. Buy a cat, hat, or golden blocks in the gem shop. Browser local storage retains progress and buildings.
+## 安装、启动与构建
+
+Node.js 22.12+，npm。推荐 `nvm use`，本次环境使用 Node 24。
 
 ```sh
-npm run build
+npm install
+npm run dev
 ```
 
-English audio is bundled as MP3 clips and does not require browser speech synthesis or an installed voice. Tap Listen again to replay; turning sound back on plays a greeting. The app requires WebGL for 3D. Learning activities still work when WebGL is unavailable. No accounts, microphone recording, or paid transactions. The sound cave covers three whole-word listening examples; individual phoneme lessons are not implemented. monster encounters currently use untimed colour challenges, rather than chase or combat mechanics. This is a prototype, not a full curriculum.
+浏览器访问终端显示的 Vite 地址。手机可在同一局域网访问开发机地址；正式 iPhone 测试请使用 HTTPS 部署地址。**不要双击 HTML，也不要使用 iPhone 文件或聊天附件预览。**
+
+```sh
+npm ci           # 已有 lockfile 时可重复安装
+npm run build    # TypeScript 检查与静态打包
+npm run preview  # 本地预览 dist，非线上部署
+```
+
+## 怎么玩
+
+1. 创建角色：4 种肤色、5 种衣色，探险家 / 卫衣 / 森林游侠 3 种款式。
+2. 沿林间小路寻找 **3 块木头**，靠近物品并互动。
+3. 收集 **5 块金色琥珀**。从中央木桥过河，继续向北探索。
+4. 小心 24 个巡游/追逐的原创方块怪物；接触或落水回到最近安全旗帜，收集物不丢失。兔子、长尾鹿、松鼠、狐狸会在林间活动。
+5. 靠近北面灌木中的宝箱，材料齐全后答题：`3+4`、`9−5`、`6+2`。每题 4 个选项，答错有琥珀提示，可重试。
+6. 答对全部 3 题，点击开箱，箱盖动画播放，**10 个木头方块**自动进入背包。每个本地存档只发一次。
+
+### 操作
+
+| 操作        | 电脑                | 手机 / 平板              |
+| ----------- | ------------------- | ------------------------ |
+| 移动        | WASD / 方向键       | 左下虚拟摇杆             |
+| 跳跃        | 空格                | 右下「跳跃」             |
+| 互动 / 收集 | E，或近距离点击物品 | 「互动」，或近距离点物品 |
+| 转动镜头    | 拖动 3D 场景        | 滑动场景空白处           |
+| 换装 / 背包 | 顶部角色 / 背包     | 顶部图标                 |
+| 关闭窗口    | 关闭按钮 / Esc      | 关闭按钮                 |
+
+地图上棕点为木头、金点为琥珀，北面方框为宝箱。金旗是安全点。打开菜单暂停怪物及角色；切换到后台自动暂停，失焦清空输入，防止按键卡住。
+
+## 存档
+
+使用独立的 `localStorage` 键 `qianqian-forest-v1`，保存外观、物品 ID、答题进度、安全点、通关状态与奖励。旧版 `wordwood-v1` 不被覆盖。
+
+- 重复收集 ID、提前开箱、重复开箱不会增加物品或奖励。
+- 开箱状态与奖励放在同一 JSON 存档中。开箱动画中刷新也不会重复领取。
+- 损坏或不兼容存档会回到默认状态；无效 ID / 重复 ID / 不完整通关标记会被校正。
+- 禁止网站存储时显示警告，仍可在本次会话游玩。清理网站数据将清除进度，不跨浏览器或设备同步。
+- 本地单机进度不是服务器防作弊系统，无法防止用户主动修改浏览器存储。
+
+## 测试
+
+```sh
+npm test
+npx playwright install chromium
+npm run test:e2e
+```
+
+已有系统 Chromium 时：
+
+```sh
+PLAYWRIGHT_CHROMIUM_EXECUTABLE=/usr/bin/chromium npm run test:e2e
+```
+
+Playwright 先构建生产版本，再自动启动 Vite 与模拟 Pages 子路径的静态服务器。测试通过真实键鼠和浏览器 Pointer Events 操作，不通过传送接口伪造通关。设备仿真不等于真机 Safari 验证。
+
+参见 [测试记录与验收](docs/LEVEL1_ACCEPTANCE.md)。
+
+## GitHub Pages 部署
+
+已提供 [GitHub Actions 配置](.github/workflows/pages.yml)：PR 运行测试；main 测试通过后上传 `dist` 并部署。
+
+1. 在 GitHub 仓库打开 **Settings → Pages → Build and deployment → Source → GitHub Actions**。
+2. 合并本次 PR 到 `main`，或在 Actions 手动运行工作流。
+3. 打开工作流给出的 `github-pages` HTTPS 地址。
+
+`vite.config.ts` 使用 `base: './'`，兼容仓库子路径和 Netlify 根路径，无需硬编码域名。Rapier WASM 随 npm 依赖打包在站点 JS 内，不从外部 CDN 下载。Netlify 仍使用 `npm run build` / `dist`。
+
+尚未在用户 GitHub 账户中启用 Pages，也不声称已发布或已通过 HTTPS 真机测试。
+
+## 代码结构与性能
+
+- `src/App.tsx`：加载 / 错误 / 重试、创建角色、任务 HUD、数学窗口、背包与触屏。
+- `src/game/Scene.tsx`：R3F 场景、Rapier 动态角色 / 固定地形 / 怪物传感器、第三人称相机。
+- `src/game/state.ts`：纯状态转换、存档校验和一次性奖励。
+- `src/game/world.ts`：场景位置、路线、收集物、检查点。
+- `src/data/level1.json`：独立题目、选项、答案和提示。
+- `tests/unit` / `tests/e2e`：规则测试与实际浏览器操作。
+
+树木采用实例化渲染，怪物固定 24 个传感器 + 实例化部件，不在帧循环创建怪物。DPR 上限桌面 1.5、触屏 1；阴影 1024；无图片纹理和远程美术资源。固定物理步长 1/60。窗口大小由 R3F 自动同步，图形上下文丢失可重试，错误详情写入控制台及屏幕。
+
+手机实际帧率、iPhone Safari 兼容性和长时间发热情况仍需真机验证。初次下载包含物理引擎，慢网络需要等待；加载界面提供状态和重试，不伪造资源百分比。
