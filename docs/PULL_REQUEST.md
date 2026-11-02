@@ -1,10 +1,11 @@
-实现第一关「森林琥珀保卫战」的探索 → 收集 → 数学题 → 一次性开箱奖励闭环。入口升级为 React / TypeScript 的真正 3D 世界，仅开发第一关。
+实现第一关「森林琥珀保卫战」的探索 → 收集 → 数学题 → 一次性开箱奖励闭环，入口升级为 React / TypeScript 的真正 3D 世界。已完整保存用户提供的 PRD V3.0 并核对 M1 第一关及公共系统；不实现其余五关。
 
-- 使用 R3F / Drei / Rapier 构建第三人称角色、碰撞、桥梁、树屋、森林动物与固定 24 个轻量怪物；静态几何合并、树木与怪物部件实例化。
-- 支持 4 种肤色、5 种衣色、3 种服装；键鼠与触屏摇杆 / 跳跃 / 互动 / 镜头。
-- 收集 3 木头、5 琥珀后才可答题，JSON 管理固定题目与提示；全部答对后开箱领取 10 木头方块。存档恢复并防止重复领取。
-- 提供初始化阶段、开始按钮、错误日志 / 重试、WebGL 丢失恢复和存储失败提示；加入 Pages 子路径配置与 GitHub Actions。
+- R3F / Drei / Rapier：第三人称角色、碰撞、木桥、树屋、森林；静态几何合并，树木与怪物部件实例化。默认 24 个池化怪物按两岸区域激活，支持巡逻、追逐、返回与 JSON 性能参数。
+- 4 种肤色、5 种衣色、3 种服装；键鼠与触屏摇杆 / 跳跃 / 互动 / 镜头。六类 18 只动物可交流获取线索，含小鸟与刺猬。
+- 3 木头 + 5 琥珀解锁固定三道 JSON 数学题。首次错误给文字提示，第二次显示图解。每题记录 attemptCount / hintCount / correctCount / firstTryCorrect / completedAt。
+- 独立家长入口确认后展示参考答案与正确率 / 提示统计，不与儿童答题界面混用。顶部暂停、Esc、持久化音效静音与重新开始；重玩保留永久奖励、外观、通关历史与累计学习记录。
+- 奖励采用唯一 ID，首次开箱发 10 木头方块；旧存档迁移，不补造历史学习数据。加入加载阶段、WebGL 错误 / 丢失恢复、存储失败提示和 Pages 工作流。
 
-验证：npm install、npm ci、npm run dev、npm run build 通过；Vitest 6/6、Chromium Playwright 8/8。浏览器完整路线实际移动收集、过桥、答错重试、开箱、刷新与重复开箱；另测触摸事件、横竖屏、怪物 / 落水回退、WebGL 故障恢复、存储拒绝与生产子路径。
+验证：npm install、npm ci、npm run dev、npm run build 通过；Vitest 10/10、Chromium Playwright 10/10。完整路线实际移动收集、过桥、答错重试、开箱、刷新与重复开箱；新增触摸、怪物 / 落水回退、WebGL 恢复、存储拒绝、生产子路径、动物交流、音效开关、暂停、分级提示、家长视图与奖励保留重玩验证。
 
-限制：本仓库及 origin/main 未提供 docs/PRD.md 或六关全景图，用户确认其在另一对话，因此本次按当前消息的第一关规格实现，未声称完成 V3.0 PRD 对照。iPhone Safari 真机、线上 HTTPS / Pages 和长时间手机性能未验证。Pages 需在仓库设置选择 GitHub Actions，合并后才部署。详见 README 与 docs/LEVEL1_ACCEPTANCE.md。
+限制：全景图 a_vibrant_minecraft_style_game_infographic_poster.png 尚未提供，不能声称完成图像视觉对照。iPhone Safari 真机、线上 HTTPS / Pages 与长时间手机性能未验证。Pages 需在仓库设置选择 GitHub Actions，合并后部署。详见 README、docs/PRD.md、docs/IMPLEMENTATION_BASELINE.md 与 docs/LEVEL1_ACCEPTANCE.md。

@@ -1,3 +1,5 @@
+import level from "../data/level1.json";
+import animalData from "../data/animals.json";
 export type Vec3 = [number, number, number];
 export const checkpoints: Vec3[] = [
   [0, 1.2, 14],
@@ -30,11 +32,36 @@ export const rocks: Vec3[] = [
   [3, 0.4, -16],
   [-5, 0.45, -19],
 ];
-export const monsterStarts: Vec3[] = Array.from({ length: 24 }, (_, i) => [
-  (i % 2 ? 1 : -1) * (6 + (i % 4) * 1.5),
-  0.8,
-  14 - Math.floor(i / 2) * 3.1,
-]);
+export const monsterStarts: Vec3[] = Array.from(
+  { length: Math.max(6, Math.min(24, level.mobs.maxActive)) },
+  (_, i) => [
+    (i % 2 ? 1 : -1) * (6 + (i % 4) * 1.5),
+    0.8,
+    14 - Math.floor(i / 2) * 3.1,
+  ],
+);
 export function distance(a: { x: number; z: number }, b: Vec3) {
   return Math.hypot(a.x - b[0], a.z - b[2]);
+}
+
+export const animals = Array.from({ length: 18 }, (_, i) => ({
+  id: `animal-${i}`,
+  kind: i % 6,
+  index: i,
+  position: [
+    i === 0 ? -1.4 : (i % 2 ? 1 : -1) * (4 + (i % 3)),
+    0,
+    i === 0 ? 13 : i < 9 ? 15 - i * 1.6 : -9 - (i - 9) * 1.7,
+  ] as Vec3,
+  ...animalData[i % 6],
+}));
+export function animalPosition(
+  animal: (typeof animals)[number],
+  time: number,
+): Vec3 {
+  return [
+    animal.position[0] + Math.sin(time * 0.45 + animal.index) * 0.65,
+    animal.kind === 4 ? 1.5 : 0,
+    animal.position[2] + Math.cos(time * 0.45 + animal.index) * 0.65,
+  ];
 }

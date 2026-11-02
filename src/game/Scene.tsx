@@ -19,9 +19,12 @@ import {
   checkpoints,
   chestPosition,
   monsterStarts,
+  animals,
+  animalPosition,
   distance,
   type Vec3,
 } from "./world";
+import level from "../data/level1.json";
 import type { Save } from "./state";
 export type Status = {
   x: number;
@@ -30,6 +33,7 @@ export type Status = {
   near: string;
   grounded: boolean;
   draws: number;
+  nearbyAnimals: string[];
 };
 export type Controller = { respawn: () => void };
 export type SceneProps = {
@@ -331,7 +335,9 @@ const Animal = memo(
     position,
     index,
     paused,
+    onInteract,
   }: {
+    onInteract: () => void;
     kind: number;
     position: Vec3;
     index: number;
@@ -345,11 +351,30 @@ const Animal = memo(
       group.current.position.z = position[2] + Math.cos(t) * 0.65;
       group.current.rotation.y = -t;
       group.current.position.y =
-        kind === 0 ? Math.abs(Math.sin(t * 3)) * 0.12 : 0;
+        kind === 4
+          ? 1.5 + Math.sin(t * 3) * 0.15
+          : kind === 0
+            ? Math.abs(Math.sin(t * 3)) * 0.12
+            : 0;
     });
-    const c = ["#eee4cf", "#be9565", "#b78a59", "#d58e4d"][kind];
+    const c = [
+      "#eee4cf",
+      "#be9565",
+      "#b78a59",
+      "#d58e4d",
+      "#719fa6",
+      "#9c896c",
+    ][kind];
     return (
-      <group ref={group} position={position} scale={kind === 1 ? 0.85 : 0.65}>
+      <group
+        ref={group}
+        position={position}
+        scale={kind === 1 ? 0.85 : 0.65}
+        onClick={(e) => {
+          e.stopPropagation();
+          onInteract();
+        }}
+      >
         <BakedVoxels>
           <Box
             p={[0, 0.5, 0]}
@@ -390,6 +415,22 @@ const Animal = memo(
               c={kind === 3 ? "#f5e1be" : c}
             />
           </group>
+          {kind === 4 && (
+            <>
+              <Box p={[-0.52, 0.65, 0]} s={[0.65, 0.1, 0.5]} c="#8dbab9" />
+              <Box p={[0.52, 0.65, 0]} s={[0.65, 0.1, 0.5]} c="#8dbab9" />
+              <Box p={[0, 0.8, -0.8]} s={[0.15, 0.15, 0.3]} c="#d9b55c" />
+            </>
+          )}
+          {kind === 5 &&
+            Array.from({ length: 9 }, (_, i) => (
+              <Box
+                key={i}
+                p={[((i % 3) - 1) * 0.22, 0.9, Math.floor(i / 3) * 0.24 - 0.2]}
+                s={[0.12, 0.35, 0.12]}
+                c="#645e48"
+              />
+            ))}
           {kind === 1 && (
             <>
               <Box
@@ -432,20 +473,32 @@ function Monsters({
     const target = player.current?.translation();
     dt = Math.min(dt, 0.04);
     points.forEach((p, i) => {
-      if (!paused && target) {
+      const active =
+        !target ||
+        level.mobs.zoneCount === 1 ||
+        target.z < -4 === monsterStarts[i][2] < -1;
+      if (!paused && target && active) {
         const d = Math.hypot(target.x - p.x, target.z - p.z);
+        const homeDistance = Math.hypot(
+          p.x - monsterStarts[i][0],
+          p.z - monsterStarts[i][2],
+        );
         let tx =
             monsterStarts[i][0] + Math.sin(clock.elapsedTime * 0.35 + i) * 1.5,
           tz = monsterStarts[i][2] + Math.cos(clock.elapsedTime * 0.3 + i);
-        if (d < 4.6 && d > 0.3) {
+        if (
+          d < level.mobs.chaseRadius &&
+          d > 0.3 &&
+          homeDistance < level.mobs.leashRadius
+        ) {
           tx = target.x;
           tz = target.z;
         }
         const v = new THREE.Vector2(tx - p.x, tz - p.z);
         if (v.length() > 0.05) {
           v.normalize();
-          p.x += v.x * dt * 0.95;
-          p.z += v.y * dt * 0.95;
+          p.x += v.x * dt * level.mobs.speed;
+          p.z += v.y * dt * level.mobs.speed;
         }
         // Monsters stay on their bank, leaving the bridge and safe flags peaceful.
         p.z =
@@ -465,6 +518,12 @@ function Monsters({
           z: p.z,
         });
       }
+      if (!paused && !active)
+        bodies.current[i]?.setNextKinematicTranslation({
+          x: p.x,
+          y: -100,
+          z: p.z,
+        });
       const palette = ["#7e9b75", "#e2d4ad", "#7ba7a1"][i % 3];
       const thin = i % 3 === 1;
       const specs = [
@@ -492,6 +551,7 @@ function Monsters({
           p.z + s.z * Math.cos(angle) - s.x * Math.sin(angle),
         );
         temp.scale.set(...(s.s as Vec3));
+        if (!active) temp.scale.set(0, 0, 0);
         temp.rotation.set(0, angle, 0);
         temp.updateMatrix();
         parts[j].current?.setMatrixAt(i, temp.matrix);
@@ -514,7 +574,7 @@ function Monsters({
         <instancedMesh
           key={i}
           ref={ref}
-          args={[undefined, undefined, 24]}
+          args={[undefined, undefined, monsterStarts.length]}
           frustumCulled={false}
           castShadow
         >
@@ -713,6 +773,13 @@ export function Scene({
         }
       }
       if (distance(p, chestPosition) < 2.6) near = "chest";
+      const nearbyAnimals = animals
+        .filter(
+          (animal) =>
+            distance(p, animalPosition(animal, clock.elapsedTime)) < 2.65,
+        )
+        .map((a) => a.id);
+      if (!near && nearbyAnimals.length) near = nearbyAnimals[0];
       s.onStatus({
         x: p.x,
         y: p.y,
@@ -720,6 +787,7 @@ export function Scene({
         near,
         grounded,
         draws: gl.info.render.calls,
+        nearbyAnimals,
       });
       setWalk(
         !s.paused && Math.abs(rb.linvel().x) + Math.abs(rb.linvel().z) > 0.3
@@ -773,17 +841,14 @@ export function Scene({
           <Pickup key={item.id} {...item} onClick={() => onInteract(item.id)} />
         ))}
       <Chest opened={save.completed} onClick={() => onInteract("chest")} />
-      {Array.from({ length: 8 }, (_, i) => (
+      {animals.map((animal) => (
         <Animal
-          key={i}
-          index={i}
-          kind={i % 4}
+          key={animal.id}
+          index={animal.index}
+          kind={animal.kind}
           paused={paused}
-          position={[
-            (i % 2 ? 1 : -1) * (4 + (i % 3)),
-            0,
-            i < 4 ? 12 - i * 3 : -11 - (i - 4) * 3,
-          ]}
+          position={animal.position}
+          onInteract={() => onInteract(animal.id)}
         />
       ))}
       <Monsters player={body} paused={paused} onBump={bump} />

@@ -95,3 +95,85 @@ describe("Forest Amber progression", () => {
     }
   });
 });
+
+describe("V3.0 learning and permanent progression", () => {
+  it("records valid wrong attempts, hints, first-try mastery and timestamps", () => {
+    let s = collected();
+    const q = level.questions[0];
+    s = transition(s, { type: "answer", id: q.id, answer: 6 });
+    s = transition(s, { type: "answer", id: q.id, answer: 5 });
+    expect(s.solved).toEqual([]);
+    expect(s.questionStats[q.id]).toMatchObject({
+      attemptCount: 2,
+      hintCount: 2,
+      correctCount: 0,
+      firstTryCorrect: false,
+      completedAt: null,
+      runErrors: 2,
+    });
+    s = transition(s, { type: "answer", id: q.id, answer: 7 });
+    expect(s.questionStats[q.id]).toMatchObject({
+      attemptCount: 3,
+      hintCount: 2,
+      correctCount: 1,
+      firstTryCorrect: false,
+    });
+    expect(Date.parse(s.questionStats[q.id].completedAt!)).toBeGreaterThan(0);
+    expect(parseSave(JSON.stringify(s))).toEqual(s);
+  });
+  it("marks independent correct answers without attributing hints", () => {
+    const q = level.questions[0];
+    const s = transition(collected(), { type: "answer", id: q.id, answer: 7 });
+    expect(s.questionStats[q.id]).toMatchObject({
+      attemptCount: 1,
+      hintCount: 0,
+      firstTryCorrect: true,
+      correctCount: 1,
+    });
+  });
+  it("migrates old completed saves without fabricating learning history", () => {
+    const old = {
+      ...collected(),
+      solved: level.questions.map((q) => q.id),
+      completed: true,
+      woodBlocks: 10,
+    };
+    delete (old as Partial<typeof old>).rewardClaims;
+    delete (old as Partial<typeof old>).questionStats;
+    const s = parseSave(JSON.stringify(old));
+    expect(s.rewardClaims).toEqual([level.reward.id]);
+    expect(s.questionStats).toEqual({});
+    expect(s.everCompleted).toBe(true);
+    expect(s.woodBlocks).toBe(10);
+  });
+  it("restart and a second complete run preserve permanent inventory without farming", () => {
+    let s = collected();
+    for (const q of level.questions)
+      s = transition(s, { type: "answer", id: q.id, answer: q.answer });
+    s = transition(s, { type: "open" });
+    s = transition(s, { type: "mute" });
+    const appearance = s.appearance;
+    s = transition(s, { type: "restart" });
+    expect(s).toMatchObject({
+      completed: false,
+      everCompleted: true,
+      woodBlocks: 10,
+      wood: [],
+      amber: [],
+      solved: [],
+      muted: true,
+    });
+    expect(s.appearance).toEqual(appearance);
+    expect(parseSave(JSON.stringify(s))).toEqual(s);
+    for (let i = 0; i < 3; i++)
+      s = transition(s, { type: "collect", kind: "wood", id: `wood-${i}` });
+    for (let i = 0; i < 5; i++)
+      s = transition(s, { type: "collect", kind: "amber", id: `amber-${i}` });
+    for (const q of level.questions)
+      s = transition(s, { type: "answer", id: q.id, answer: q.answer });
+    s = transition(s, { type: "open" });
+    expect(s.woodBlocks).toBe(10);
+    expect(s.rewardClaims).toHaveLength(1);
+    expect(s.questionStats[level.questions[0].id].attemptCount).toBe(2);
+  });
+});

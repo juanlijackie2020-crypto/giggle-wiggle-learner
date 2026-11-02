@@ -1267,3 +1267,109 @@ body,
     line-height: 1.5;
   }
 }
+/* Parent-only learning records and explicit pause controls. */
+.pause-actions {
+  display: grid;
+  gap: 12px;
+  margin: 25px 0;
+}
+.pause-actions > button:not(.primary) {
+  background: #e7edd8;
+  padding: 14px;
+  border: 1px solid #d5dfc6;
+  border-radius: 10px;
+  font-size: 14px;
+}
+.restart-confirm {
+  background: #f3e9ca;
+  padding: 16px;
+  border-radius: 12px;
+  margin-top: 15px;
+}
+.restart-confirm button {
+  padding: 12px;
+  margin: 5px;
+  border-radius: 8px;
+  background: #e2d2a1;
+}
+.parent-panel {
+  max-width: 740px;
+}
+.report-table {
+  overflow: auto;
+  margin: 22px 0;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  text-align: left;
+}
+th,
+td {
+  padding: 12px 9px;
+  border-bottom: 1px solid #dce4cc;
+  white-space: nowrap;
+}
+th {
+  font-weight: 600;
+  color: #738563;
+}
+td {
+  color: #446349;
+}
+.visual-hint {
+  color: #648451 !important;
+}
+.math-dots i.taken-away {
+  opacity: 0.35;
+  position: relative;
+}
+.taken-away:after {
+  content: "×";
+  position: absolute;
+  color: #5b584a;
+  font-style: normal;
+  top: -5px;
+  left: 0;
+  font-size: 18px;
+}
+@media (max-width: 700px) {
+  .header-actions {
+    gap: 3px;
+  }
+  .header-actions button {
+    padding: 8px;
+  }
+  .brand {
+    font-size: 10px;
+  }
+  .brand small {
+    display: none;
+  }
+  .brand-icon {
+    width: 29px;
+  }
+  .header-actions b {
+    margin-left: 2px;
+  }
+  .panel p {
+    font-size: 14px;
+    line-height: 1.8;
+  }
+  .answers button {
+    min-height: 60px;
+  }
+  .primary {
+    font-size: 15px;
+  }
+  .task {
+    font-size: 12px;
+  }
+  .task small {
+    font-size: 10px;
+  }
+  .touch-actions button small {
+    font-size: 10px;
+  }
+}

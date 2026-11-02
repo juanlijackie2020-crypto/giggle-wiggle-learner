@@ -1,6 +1,23 @@
 import level from "../data/level1.json";
 export type Outfit = "explorer" | "hoodie" | "ranger";
 export type Appearance = { skin: string; shirt: string; outfit: Outfit };
+export type QuestionProgress = {
+  attemptCount: number;
+  hintCount: number;
+  correctCount: number;
+  firstTryCorrect: boolean | null;
+  completedAt: string | null;
+  runErrors: number;
+};
+export const emptyProgress = (): QuestionProgress => ({
+  attemptCount: 0,
+  hintCount: 0,
+  correctCount: 0,
+  firstTryCorrect: null,
+  completedAt: null,
+  runErrors: 0,
+});
+export const REWARD_ID = level.reward.id;
 export type Save = {
   version: 1;
   appearance: Appearance;
@@ -10,6 +27,10 @@ export type Save = {
   completed: boolean;
   woodBlocks: number;
   checkpoint: number;
+  rewardClaims: string[];
+  everCompleted: boolean;
+  questionStats: Record<string, QuestionProgress>;
+  muted: boolean;
 };
 export const SAVE_KEY = "qianqian-forest-v1";
 export const skins = ["#f4c99f", "#dca477", "#ac754f", "#714e3c"];
@@ -23,6 +44,10 @@ export const initialSave = (): Save => ({
   completed: false,
   woodBlocks: 0,
   checkpoint: 0,
+  rewardClaims: [],
+  everCompleted: false,
+  questionStats: {},
+  muted: false,
 });
 export const readyForChest = (s: Save) =>
   s.wood.length === 3 && s.amber.length === 5;
@@ -31,8 +56,26 @@ export type Action =
   | { type: "collect"; kind: "wood" | "amber"; id: string }
   | { type: "answer"; id: string; answer: number }
   | { type: "open" }
-  | { type: "checkpoint"; index: number };
+  | { type: "checkpoint"; index: number }
+  | { type: "mute" }
+  | { type: "restart" };
 export function transition(s: Save, a: Action): Save {
+  if (a.type === "mute") return { ...s, muted: !s.muted };
+  if (a.type === "restart")
+    return {
+      ...initialSave(),
+      appearance: s.appearance,
+      muted: s.muted,
+      rewardClaims: s.rewardClaims,
+      everCompleted: s.everCompleted,
+      woodBlocks: s.woodBlocks,
+      questionStats: Object.fromEntries(
+        Object.entries(s.questionStats).map(([id, record]) => [
+          id,
+          { ...record, runErrors: 0 },
+        ]),
+      ),
+    };
   if (a.type === "appearance") return { ...s, appearance: a.value };
   if (a.type === "collect") {
     const max = a.kind === "wood" ? 3 : 5;
@@ -45,9 +88,31 @@ export function transition(s: Save, a: Action): Save {
   }
   if (a.type === "answer") {
     const q = level.questions[s.solved.length];
-    if (!readyForChest(s) || !q || q.id !== a.id || q.answer !== a.answer)
+    if (
+      !readyForChest(s) ||
+      !q ||
+      q.id !== a.id ||
+      !q.options.includes(a.answer)
+    )
       return s;
-    return { ...s, solved: [...s.solved, q.id] };
+    const prior = s.questionStats[q.id] ?? emptyProgress(),
+      correct = a.answer === q.answer;
+    const record = {
+      ...prior,
+      attemptCount: prior.attemptCount + 1,
+      hintCount: prior.hintCount + (correct ? 0 : 1),
+      correctCount: prior.correctCount + (correct ? 1 : 0),
+      firstTryCorrect: prior.firstTryCorrect ?? correct,
+      completedAt: correct
+        ? (prior.completedAt ?? new Date().toISOString())
+        : prior.completedAt,
+      runErrors: prior.runErrors + (correct ? 0 : 1),
+    };
+    return {
+      ...s,
+      solved: correct ? [...s.solved, q.id] : s.solved,
+      questionStats: { ...s.questionStats, [q.id]: record },
+    };
   }
   if (a.type === "open") {
     if (
@@ -56,7 +121,15 @@ export function transition(s: Save, a: Action): Save {
       s.solved.length !== level.questions.length
     )
       return s;
-    return { ...s, completed: true, woodBlocks: level.reward.woodBlocks };
+    return {
+      ...s,
+      completed: true,
+      everCompleted: true,
+      rewardClaims: s.rewardClaims.includes(REWARD_ID)
+        ? s.rewardClaims
+        : [...s.rewardClaims, REWARD_ID],
+      woodBlocks: level.reward.quantity,
+    };
   }
   if (
     a.type === "checkpoint" &&
@@ -97,6 +170,32 @@ export function parseSave(raw: string | null): Save {
         solved.push(q.id);
       }
     const completed = x.completed === true && solved.length === 3;
+    const claimed =
+      (Array.isArray(x.rewardClaims) && x.rewardClaims.includes(REWARD_ID)) ||
+      completed;
+    const questionStats: Record<string, QuestionProgress> = {};
+    const count = (n: unknown) =>
+      typeof n === "number" && Number.isInteger(n) && n >= 0 && n <= 1000000
+        ? n
+        : 0;
+    for (const q of level.questions) {
+      const r = x.questionStats?.[q.id];
+      if (!r || typeof r !== "object") continue;
+      const attemptCount = count(r.attemptCount);
+      questionStats[q.id] = {
+        attemptCount,
+        hintCount: Math.min(count(r.hintCount), attemptCount),
+        correctCount: Math.min(count(r.correctCount), attemptCount),
+        firstTryCorrect:
+          typeof r.firstTryCorrect === "boolean" ? r.firstTryCorrect : null,
+        completedAt:
+          typeof r.completedAt === "string" &&
+          Number.isFinite(Date.parse(r.completedAt))
+            ? r.completedAt
+            : null,
+        runErrors: Math.min(count(r.runErrors), attemptCount),
+      };
+    }
     const appearance = {
       skin: skins.includes(x.appearance?.skin)
         ? x.appearance.skin
@@ -115,7 +214,11 @@ export function parseSave(raw: string | null): Save {
       amber,
       solved,
       completed,
-      woodBlocks: completed ? level.reward.woodBlocks : 0,
+      woodBlocks: claimed ? level.reward.quantity : 0,
+      rewardClaims: claimed ? [REWARD_ID] : [],
+      everCompleted: claimed,
+      questionStats,
+      muted: x.muted === true,
       checkpoint: [0, 1, 2].includes(x.checkpoint) ? x.checkpoint : 0,
     };
   } catch {

@@ -10,6 +10,8 @@ import {
 import type { Status, Controller } from "./game/Scene";
 import {
   initialSave,
+  emptyProgress,
+  REWARD_ID,
   parseSave,
   transition,
   SAVE_KEY,
@@ -20,10 +22,12 @@ import {
   type Save,
   type Outfit,
 } from "./game/state";
-import { collectibles, chestPosition, distance } from "./game/world";
+import { collectibles, chestPosition, distance, animals } from "./game/world";
 import { input, clearInput } from "./game/input";
 import level from "./data/level1.json";
 import "./style.css";
+import { LearningReport } from "./LearningReport";
+import { playTone, setAudioMuted } from "./game/sound";
 const GameCanvas = lazy(() => import("./game/GameCanvas"));
 class GameBoundary extends Component<
   { children: ReactNode; onError: (message: string) => void },
@@ -162,6 +166,7 @@ const initialStatus: Status = {
   near: "",
   grounded: false,
   draws: 0,
+  nearbyAnimals: [],
 };
 export default function App() {
   const [save, setSave] = useState<Save>(() => {
@@ -177,15 +182,17 @@ export default function App() {
     [error, setError] = useState(""),
     [attempt, setAttempt] = useState(0),
     [status, setStatus] = useState(initialStatus),
-    [panel, setPanel] = useState<"none" | "bag" | "avatar" | "quiz" | "help">(
-      "none",
-    ),
+    [panel, setPanel] = useState<
+      "none" | "bag" | "avatar" | "quiz" | "help" | "pause" | "parent"
+    >("none"),
     [hint, setHint] = useState(""),
     [notice, setNotice] = useState(""),
     [storageError, setStorageError] = useState(false),
     [hidden, setHidden] = useState(document.hidden),
     [taskOpen, setTaskOpen] = useState(false),
-    [opening, setOpening] = useState(false);
+    [opening, setOpening] = useState(false),
+    [restartConfirm, setRestartConfirm] = useState(false),
+    [earnedReward, setEarnedReward] = useState(false);
   const controller = useRef<Controller | null>(null),
     noticeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined),
     openingTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -255,6 +262,16 @@ export default function App() {
       clearInput();
       return;
     }
+    const animal = animals.find((a) => a.id === id);
+    if (animal) {
+      if (!p.nearbyAnimals.includes(animal.id)) {
+        notify("再靠近小动物一点，就可以交流了。");
+        return;
+      }
+      notify(`${animal.name}：${animal.hint}`);
+      playTone("animal", s.muted);
+      return;
+    }
     const item = collectibles.find((c) => c.id === id);
     if (!item) {
       notify("靠近发光琥珀、木头或宝箱，再按互动。");
@@ -266,6 +283,7 @@ export default function App() {
     }
     if (s[item.kind].includes(item.id)) return;
     dispatch({ type: "collect", kind: item.kind, id: item.id });
+    playTone("collect", s.muted);
     notify(item.kind === "wood" ? "收集到一块木头！" : "收集到一块森林琥珀！");
   }
   const interactRef = useRef(interact);
@@ -273,7 +291,9 @@ export default function App() {
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
       if (e.code === "Escape") {
-        setPanel("none");
+        setPanel((p) =>
+          p === "none" && live.current.started ? "pause" : "none",
+        );
         clearInput();
         return;
       }
@@ -324,13 +344,42 @@ export default function App() {
     setRendererReady(false);
     setAttempt((a) => a + 1);
   }
+  useEffect(() => setAudioMuted(save.muted), [save.muted]);
+  function toggleSound() {
+    const muted = !save.muted;
+    setAudioMuted(muted);
+    dispatch({ type: "mute" });
+    if (!muted) playTone("collect", false);
+  }
+  function restartLevel() {
+    clearTimeout(openingTimer.current);
+    setOpening(false);
+    dispatch({ type: "restart" });
+    setPanel("none");
+    setRestartConfirm(false);
+    setHint("");
+    clearInput();
+    input.yaw = 0;
+    input.pitch = 0.48;
+    setReady(false);
+    setRendererReady(false);
+    setAttempt((a) => a + 1);
+    notify("已重新开始。永久奖励和学习记录仍然保留。");
+  }
   function openChest() {
+    const earned = !save.rewardClaims.includes(REWARD_ID);
+    setEarnedReward(earned);
+    playTone("reward", save.muted);
     dispatch({ type: "open" });
     setPanel("none");
     setOpening(true);
     openingTimer.current = setTimeout(() => {
       setOpening(false);
-      notify("第一关完成！10 个木头方块已放入背包。");
+      notify(
+        earned
+          ? "第一关完成！10 个木头方块已放入背包。"
+          : "再次通关！永久奖励已领取，不重复发放。",
+      );
     }, 1600);
   }
   const q = level.questions[save.solved.length];
@@ -343,8 +392,13 @@ export default function App() {
         ? "收集木头"
         : status.near.startsWith("amber")
           ? "收集琥珀"
-          : "靠近物品互动";
+          : status.near.startsWith("animal-")
+            ? "和小动物交流"
+            : "靠近物品互动";
   const all = readyForChest(save);
+  const questionProgress = q
+    ? (save.questionStats[q.id] ?? emptyProgress())
+    : emptyProgress();
   return (
     <main className="game-shell">
       <div
@@ -396,6 +450,23 @@ export default function App() {
           <i /> LEVEL 01 <span>森林琥珀保卫战</span>
         </div>
         <div className="header-actions">
+          <button
+            aria-label={save.muted ? "开启音效" : "静音音效"}
+            aria-pressed={save.muted}
+            onClick={toggleSound}
+          >
+            {save.muted ? "♪̸" : "♫"}
+          </button>
+          <button
+            aria-label="暂停游戏"
+            onClick={() => {
+              setPanel("pause");
+              setRestartConfirm(false);
+              clearInput();
+            }}
+          >
+            Ⅱ
+          </button>
           <button
             onClick={() => {
               setPanel("avatar");
@@ -585,7 +656,11 @@ export default function App() {
         <div className="celebration" role="status">
           <span>✦</span>
           <h2>你守护了森林！</h2>
-          <p>＋10 木头方块 · 已放入背包</p>
+          <p>
+            {earnedReward
+              ? "＋10 木头方块 · 已放入背包"
+              : "再次通关 · 永久奖励已保留，不重复发放"}
+          </p>
         </div>
       )}
       {notice && (
@@ -621,7 +696,7 @@ export default function App() {
       {panel !== "none" && !error && (
         <div className="overlay">
           <section
-            className={`panel ${panel === "quiz" ? "quiz-panel" : ""}`}
+            className={`panel ${panel === "quiz" ? "quiz-panel" : ""} ${panel === "parent" ? "parent-panel" : ""}`}
             role="dialog"
             aria-modal="true"
             aria-label={
@@ -631,7 +706,11 @@ export default function App() {
                   ? "背包"
                   : panel === "quiz"
                     ? "数学宝箱"
-                    : "操作帮助"
+                    : panel === "pause"
+                      ? "暂停游戏"
+                      : panel === "parent"
+                        ? "家长视图"
+                        : "操作帮助"
             }
           >
             <button
@@ -641,6 +720,39 @@ export default function App() {
             >
               ×
             </button>
+            {panel === "parent" && <LearningReport save={save} />}
+            {panel === "pause" && (
+              <>
+                <span className="eyebrow">TAKE YOUR TIME</span>
+                <h2>森林等你回来。</h2>
+                <p>游戏已暂停。休息一下，也是一种冒险。</p>
+                <div className="pause-actions">
+                  <button className="primary" onClick={() => setPanel("none")}>
+                    继续游戏 →
+                  </button>
+                  <button onClick={() => setPanel("parent")}>
+                    家长视图与学习记录
+                  </button>
+                  <button onClick={toggleSound}>
+                    {save.muted ? "开启音效" : "静音音效"}
+                  </button>
+                  <button onClick={() => setRestartConfirm(true)}>
+                    重新开始第一关
+                  </button>
+                </div>
+                {restartConfirm && (
+                  <div className="restart-confirm" role="alert">
+                    <p>
+                      将重新收集木头、琥珀并解答宝箱题。外观、永久木头方块奖励和累计学习记录都保留。
+                    </p>
+                    <button onClick={restartLevel}>确认重新开始</button>
+                    <button onClick={() => setRestartConfirm(false)}>
+                      取消
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
             {panel === "avatar" && (
               <>
                 <span className="eyebrow">MAKE IT YOUR ADVENTURE</span>
@@ -748,7 +860,9 @@ export default function App() {
                 <p>
                   {save.completed
                     ? "第一关已通关。奖励只能领取一次，刷新后仍保留。"
-                    : "收集齐材料，再解答 3 道数学题，获得 10 个木头方块。"}
+                    : save.rewardClaims.includes(REWARD_ID)
+                      ? "当前正在重玩。已领取的 10 个永久木头方块仍保留，不重复发放。"
+                      : "收集齐材料，再解答 3 道数学题，获得 10 个木头方块。"}
                 </p>
                 <button className="primary" onClick={() => setPanel("none")}>
                   继续探索 →
@@ -775,29 +889,47 @@ export default function App() {
                       第 {save.solved.length + 1} / 3 题 · 想一想，点选答案。
                     </p>
                     <div className="equation">{q.text}</div>
-                    <div className="math-dots" aria-label="琥珀计数提示">
-                      <span>
-                        {Array.from({ length: q.dots[0] }, (_, i) => (
-                          <i key={i} />
-                        ))}
-                      </span>
-                      <b>{q.operation}</b>
-                      <span>
-                        {Array.from({ length: q.dots[1] }, (_, i) => (
-                          <i key={i} />
-                        ))}
-                      </span>
-                    </div>
+                    {questionProgress.runErrors >= 2 && (
+                      <>
+                        <p className="visual-hint">{q.visualHint}</p>
+                        <div className="math-dots" aria-label="琥珀计数提示">
+                          <span>
+                            {Array.from({ length: q.dots[0] }, (_, i) => (
+                              <i
+                                key={i}
+                                className={
+                                  q.operation === "−" &&
+                                  i >= q.dots[0] - q.dots[1]
+                                    ? "taken-away"
+                                    : ""
+                                }
+                              />
+                            ))}
+                          </span>
+                          {q.operation !== "−" && (
+                            <>
+                              <b>＋</b>
+                              <span>
+                                {Array.from({ length: q.dots[1] }, (_, i) => (
+                                  <i key={i} />
+                                ))}
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      </>
+                    )}
                     <div className="answers">
                       {q.options.map((answer) => (
                         <button
                           key={answer}
                           onClick={() => {
+                            dispatch({ type: "answer", id: q.id, answer });
                             if (answer !== q.answer) {
                               setHint(q.hint);
                               return;
                             }
-                            dispatch({ type: "answer", id: q.id, answer });
+                            playTone("correct", save.muted);
                             setHint("");
                           }}
                         >
@@ -806,7 +938,9 @@ export default function App() {
                       ))}
                     </div>
                     <p className="hint" role="status">
-                      {hint || "答错也没关系，可以慢慢尝试。"}
+                      {questionProgress.runErrors > 0
+                        ? q.hint
+                        : hint || "答错也没关系，可以慢慢尝试。"}
                     </p>
                   </>
                 ) : (
@@ -815,10 +949,14 @@ export default function App() {
                     <p>
                       三道题全部答对了！
                       <br />
-                      打开宝箱，领取 10 个木头方块。
+                      {save.rewardClaims.includes(REWARD_ID)
+                        ? "再次开箱，完成本次冒险；已领取的奖励不会重复发放。"
+                        : "打开宝箱，领取 10 个木头方块。"}
                     </p>
                     <button className="primary" onClick={openChest}>
-                      开启宝箱 · ＋10 木头方块
+                      {save.rewardClaims.includes(REWARD_ID)
+                        ? "开启宝箱 · 完成本次冒险"
+                        : "开启宝箱 · ＋10 木头方块"}
                     </button>
                   </>
                 )}
