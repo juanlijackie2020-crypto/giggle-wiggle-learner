@@ -7,7 +7,7 @@ import {
 } from "../../src/game/state";
 import level from "../../src/data/level1.json";
 function collected() {
-  let s = initialSave();
+  let s = parseSave(JSON.stringify({ version: 1 }));
   for (let i = 0; i < 3; i++)
     s = transition(s, { type: "collect", kind: "wood", id: `wood-${i}` });
   for (let i = 0; i < 5; i++)
@@ -66,8 +66,20 @@ describe("Forest Amber progression", () => {
     expect(transition(s, { type: "checkpoint", index: 0 }).checkpoint).toBe(2);
   });
   it("recovers corrupted, incomplete and duplicate saves without fabricated rewards", () => {
-    expect(parseSave("{broken")).toEqual(initialSave());
-    expect(parseSave("null")).toEqual(initialSave());
+    expect(parseSave("{broken")).toMatchObject({
+      version: 2,
+      wood: [],
+      amber: [],
+      solved: [],
+      woodBlocks: 0,
+    });
+    expect(parseSave("null")).toMatchObject({
+      version: 2,
+      wood: [],
+      amber: [],
+      solved: [],
+      woodBlocks: 0,
+    });
     expect(
       parseSave(
         JSON.stringify({
@@ -169,11 +181,11 @@ describe("V3.0 learning and permanent progression", () => {
       s = transition(s, { type: "collect", kind: "wood", id: `wood-${i}` });
     for (let i = 0; i < 5; i++)
       s = transition(s, { type: "collect", kind: "amber", id: `amber-${i}` });
-    for (const q of level.questions)
+    for (const q of s.questionSet.questions)
       s = transition(s, { type: "answer", id: q.id, answer: q.answer });
     s = transition(s, { type: "open" });
     expect(s.woodBlocks).toBe(10);
     expect(s.rewardClaims).toHaveLength(1);
-    expect(s.questionStats[level.questions[0].id].attemptCount).toBe(2);
+    expect(s.questionStats[level.questions[0].id].attemptCount).toBe(1);
   });
 });

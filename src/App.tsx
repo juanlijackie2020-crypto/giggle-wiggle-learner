@@ -20,14 +20,21 @@ import {
   shirts,
   type Action,
   type Save,
-  type Outfit,
+  outfits,
+  outfitNames,
+  shirtNames,
+  palettes,
 } from "./game/state";
 import { collectibles, chestPosition, distance, animals } from "./game/world";
 import { input, clearInput } from "./game/input";
-import level from "./data/level1.json";
+import { tasks, taskMarkers } from "./game/tasks";
+import { Dialogue } from "./Dialogue";
+import { TaskBoard } from "./TaskBoard";
+import { stopVoice, playVoice, voiceVolume } from "./game/dialogueAudio";
 import "./style.css";
 import { LearningReport } from "./LearningReport";
-import { playTone, setAudioMuted } from "./game/sound";
+import { playTone, setAudioMuted, setEffectsVolume } from "./game/sound";
+const AvatarPreview = lazy(() => import("./AvatarPreview"));
 const GameCanvas = lazy(() => import("./game/GameCanvas"));
 class GameBoundary extends Component<
   { children: ReactNode; onError: (message: string) => void },
@@ -146,6 +153,22 @@ function Map({ status, save }: { status: Status; save: Save }) {
             />
           ))}
         <rect x="65" y="15" width="10" height="8" rx="1" fill="#aa7847" />
+        {taskMarkers
+          .filter((m) => m.task === save.tasks.active)
+          .map((m) => (
+            <rect
+              key={m.id}
+              x={67 + m.position[0] * 2.7}
+              y={(m.position[2] + 28) * 2.7 - 3}
+              width="6"
+              height="6"
+              fill={
+                (save.tasks.steps[m.task] ?? []).includes(m.id)
+                  ? "#e8a82f"
+                  : "#0067bc"
+              }
+            />
+          ))}
         <circle
           cx={70 + status.x * 2.7}
           cy={(status.z + 28) * 2.7}
@@ -183,8 +206,19 @@ export default function App() {
     [attempt, setAttempt] = useState(0),
     [status, setStatus] = useState(initialStatus),
     [panel, setPanel] = useState<
-      "none" | "bag" | "avatar" | "quiz" | "help" | "pause" | "parent"
+      | "none"
+      | "bag"
+      | "avatar"
+      | "quiz"
+      | "help"
+      | "pause"
+      | "parent"
+      | "tasks"
+      | "dialogue"
     >("none"),
+    [talkingAnimal, setTalkingAnimal] = useState<(typeof animals)[number]>(
+      animals[0],
+    ),
     [hint, setHint] = useState(""),
     [notice, setNotice] = useState(""),
     [storageError, setStorageError] = useState(false),
@@ -224,8 +258,12 @@ export default function App() {
     const visible = () => {
       setHidden(document.hidden);
       clearInput();
+      if (document.hidden) stopVoice();
     };
-    const blur = () => clearInput();
+    const blur = () => {
+      clearInput();
+      stopVoice();
+    };
     document.addEventListener("visibilitychange", visible);
     window.addEventListener("blur", blur);
     return () => {
@@ -233,6 +271,13 @@ export default function App() {
       window.removeEventListener("blur", blur);
     };
   }, []);
+  useEffect(() => {
+    if (panel !== "dialogue") stopVoice();
+    clearInput();
+  }, [panel]);
+  useEffect(() => {
+    setEffectsVolume(save.effectsVolume);
+  }, [save.effectsVolume]);
   function interact(requested?: string) {
     const {
       save: s,
@@ -242,6 +287,24 @@ export default function App() {
     } = live.current;
     if (!playing || currentPanel !== "none") return;
     const id = requested ?? p.near;
+    if (id.startsWith("marker:")) {
+      const marker = taskMarkers.find((m) => m.id === id.slice(7));
+      if (
+        !marker ||
+        marker.task !== s.tasks.active ||
+        distance(p, marker.position) > 2
+      )
+        return;
+      const before = s.tasks.steps[marker.task] ?? [];
+      if (marker.id === "finish" && before.length < 3) {
+        notify("先依次跳上三块木桩，再来终点。");
+        return;
+      }
+      dispatch({ type: "task-step", task: marker.task, step: marker.id });
+      notify(`发现 ${marker.name}！打开任务板查看进度。`);
+      playTone("correct", s.muted);
+      return;
+    }
     if (id === "chest") {
       if (distance(p, chestPosition) > 2.8) {
         notify("靠近宝箱，再按互动。");
@@ -268,7 +331,10 @@ export default function App() {
         notify("再靠近小动物一点，就可以交流了。");
         return;
       }
-      notify(`${animal.name}：${animal.hint}`);
+      setTalkingAnimal(animal);
+      setPanel("dialogue");
+      clearInput();
+      notify(`${animal.name}：你好，小探险家！`);
       playTone("animal", s.muted);
       return;
     }
@@ -345,9 +411,11 @@ export default function App() {
     setAttempt((a) => a + 1);
   }
   useEffect(() => setAudioMuted(save.muted), [save.muted]);
+  useEffect(() => voiceVolume(save.voiceVolume), [save.voiceVolume]);
   function toggleSound() {
     const muted = !save.muted;
     setAudioMuted(muted);
+    if (muted) stopVoice();
     dispatch({ type: "mute" });
     if (!muted) playTone("collect", false);
   }
@@ -382,9 +450,11 @@ export default function App() {
       );
     }, 1600);
   }
-  const q = level.questions[save.solved.length];
-  const nearLabel =
-    status.near === "chest"
+  const q = save.questionSet.questions[save.solved.length];
+  const selectedTask = tasks.find((t) => t.id === save.tasks.active);
+  const nearLabel = status.near.startsWith("marker:")
+    ? "发现这里 · 互动"
+    : status.near === "chest"
       ? save.completed
         ? "查看宝箱"
         : "打开宝箱"
@@ -421,6 +491,13 @@ export default function App() {
                 dispatch({ type: "checkpoint", index });
                 notify("已到达新的安全点。");
               }}
+              onTaskStep={(task, step) =>
+                dispatch({ type: "task-step", task, step })
+              }
+              onParkourReset={() => {
+                dispatch({ type: "parkour-reset" });
+                notify("回到木桩起点，再跳一次！主线收集物还在。");
+              }}
               onBump={() =>
                 notify("没关系！回到安全点，再试一次。收集物还在。")
               }
@@ -450,6 +527,11 @@ export default function App() {
           <i /> LEVEL 01 <span>森林琥珀保卫战</span>
         </div>
         <div className="header-actions">
+          {started && (
+            <button aria-label="选择任务" onClick={() => setPanel("tasks")}>
+              🧭 <span>任务</span>
+            </button>
+          )}
           <button
             aria-label={save.muted ? "开启音效" : "静音音效"}
             aria-pressed={save.muted}
@@ -505,11 +587,11 @@ export default function App() {
               className="mission-heading"
               onClick={() => setTaskOpen(!taskOpen)}
             >
-              <span className="eyebrow">YOUR FOREST ADVENTURE</span>
+              <span className="eyebrow">第一关 · 自由探索</span>
               <span className="mobile-expand">{taskOpen ? "−" : "＋"}</span>
             </button>
             <h1>
-              森林的秘密<span>等你来发现。</span>
+              森林琥珀<span>保卫战</span>
             </h1>
             <div className="mission-body">
               <p>沿着小路，寻找琥珀与藏起来的宝箱。</p>
@@ -561,6 +643,25 @@ export default function App() {
                 : `安全点 ${save.checkpoint + 1} · 进度自动保存`}
             </div>
           </aside>
+          {selectedTask && (
+            <button className="tracked-task" onClick={() => setPanel("tasks")}>
+              <span>
+                {selectedTask.icon} {selectedTask.name}
+              </span>
+              <strong>
+                {(save.tasks.steps[selectedTask.id] ?? []).length}/
+                {selectedTask.steps.length}
+              </strong>
+              <small>
+                {selectedTask.labels[
+                  selectedTask.steps.findIndex(
+                    (step) =>
+                      !(save.tasks.steps[selectedTask.id] ?? []).includes(step),
+                  )
+                ] ?? "✓ 本轮完成 · 徽章已保存"}
+              </small>
+            </button>
+          )}
           <Map status={status} save={save} />
           <div className="location-label">
             <span>THE AMBER WOODS</span>
@@ -696,7 +797,7 @@ export default function App() {
       {panel !== "none" && !error && (
         <div className="overlay">
           <section
-            className={`panel ${panel === "quiz" ? "quiz-panel" : ""} ${panel === "parent" ? "parent-panel" : ""}`}
+            className={`panel ${panel === "avatar" ? "avatar-panel" : ""} ${panel === "tasks" ? "tasks-panel" : ""} ${panel === "quiz" ? "quiz-panel" : ""} ${panel === "parent" ? "parent-panel" : ""}`}
             role="dialog"
             aria-modal="true"
             aria-label={
@@ -706,11 +807,15 @@ export default function App() {
                   ? "背包"
                   : panel === "quiz"
                     ? "数学宝箱"
-                    : panel === "pause"
-                      ? "暂停游戏"
-                      : panel === "parent"
-                        ? "家长视图"
-                        : "操作帮助"
+                    : panel === "tasks"
+                      ? "选择任务"
+                      : panel === "dialogue"
+                        ? "动物对话"
+                        : panel === "pause"
+                          ? "暂停游戏"
+                          : panel === "parent"
+                            ? "家长视图"
+                            : "操作帮助"
             }
           >
             <button
@@ -720,7 +825,32 @@ export default function App() {
             >
               ×
             </button>
-            {panel === "parent" && <LearningReport save={save} />}
+            {panel === "tasks" && <TaskBoard save={save} dispatch={dispatch} />}
+            {panel === "dialogue" && (
+              <Dialogue
+                animal={talkingAnimal}
+                save={save}
+                hidden={hidden}
+                onMute={toggleSound}
+                onResponse={() => {
+                  if (talkingAnimal.kind === 0)
+                    dispatch({
+                      type: "task-step",
+                      task: "friends",
+                      step: "rabbit",
+                    });
+                  if (talkingAnimal.kind === 2)
+                    dispatch({
+                      type: "task-step",
+                      task: "friends",
+                      step: "squirrel",
+                    });
+                }}
+              />
+            )}
+            {panel === "parent" && (
+              <LearningReport save={save} dispatch={dispatch} />
+            )}
             {panel === "pause" && (
               <>
                 <span className="eyebrow">TAKE YOUR TIME</span>
@@ -738,6 +868,68 @@ export default function App() {
                   </button>
                   <button onClick={() => setRestartConfirm(true)}>
                     重新开始第一关
+                  </button>
+                </div>
+                <div className="audio-settings">
+                  <label>
+                    对白音量{" "}
+                    <input
+                      aria-label="对白音量"
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.05"
+                      value={save.voiceVolume}
+                      onChange={(e) =>
+                        dispatch({
+                          type: "volume",
+                          channel: "voiceVolume",
+                          value: Number(e.target.value),
+                        })
+                      }
+                    />
+                  </label>
+                  <label>
+                    音效音量{" "}
+                    <input
+                      aria-label="音效音量"
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.05"
+                      value={save.effectsVolume}
+                      onChange={(e) =>
+                        dispatch({
+                          type: "volume",
+                          channel: "effectsVolume",
+                          value: Number(e.target.value),
+                        })
+                      }
+                    />
+                  </label>
+                  <button
+                    onClick={() => {
+                      if (save.muted) {
+                        notify("请先开启声音，再试听。");
+                        return;
+                      }
+                      playVoice(
+                        "audio/forest/hero-hello.mp3",
+                        save.voiceVolume,
+                        () => {},
+                        () => notify("声音没能播放，请点试听重试。"),
+                      );
+                    }}
+                  >
+                    试听对白
+                  </button>
+                  <button
+                    aria-pressed={save.lowQuality}
+                    onClick={() => dispatch({ type: "quality" })}
+                  >
+                    {save.lowQuality
+                      ? "低画质 · 已开启"
+                      : "开启低画质（更流畅）"}
                   </button>
                 </div>
                 {restartConfirm && (
@@ -758,6 +950,9 @@ export default function App() {
                 <span className="eyebrow">MAKE IT YOUR ADVENTURE</span>
                 <h2>你好，小小探险家。</h2>
                 <p>选一个属于你的样子。角色外观会自动保存。</p>
+                <Suspense fallback={<p>正在准备 3D 换装镜…</p>}>
+                  <AvatarPreview appearance={save.appearance} />
+                </Suspense>
                 <fieldset>
                   <legend>肤色</legend>
                   <div className="swatches">
@@ -784,6 +979,7 @@ export default function App() {
                       <button
                         key={c}
                         style={{ background: c }}
+                        title={shirtNames[i]}
                         aria-label={`衣服颜色 ${i + 1}`}
                         aria-pressed={save.appearance.shirt === c}
                         onClick={() =>
@@ -797,25 +993,48 @@ export default function App() {
                   </div>
                 </fieldset>
                 <fieldset>
-                  <legend>服装款式 · 角色在森林中实时换装</legend>
+                  <legend>服装款式 · 6 种原创造型</legend>
                   <div className="outfits">
-                    {(["explorer", "hoodie", "ranger"] as Outfit[]).map(
-                      (v, i) => (
-                        <button
-                          key={v}
-                          aria-pressed={save.appearance.outfit === v}
-                          onClick={() =>
-                            dispatch({
-                              type: "appearance",
-                              value: { ...save.appearance, outfit: v },
-                            })
-                          }
-                        >
-                          <span>{["♙", "▥", "♧"][i]}</span>
-                          {["小小探险家", "舒适卫衣", "森林游侠"][i]}
-                        </button>
-                      ),
-                    )}
+                    {outfits.map((v, i) => (
+                      <button
+                        key={v}
+                        aria-pressed={save.appearance.outfit === v}
+                        onClick={() =>
+                          dispatch({
+                            type: "appearance",
+                            value: { ...save.appearance, outfit: v },
+                          })
+                        }
+                      >
+                        <span>{["🧭", "🧥", "🌿", "🌦️", "🐰", "🛠️"][i]}</span>
+                        {outfitNames[i]}
+                      </button>
+                    ))}
+                  </div>
+                </fieldset>
+                <fieldset>
+                  <legend>一键搭配</legend>
+                  <div className="palette-options">
+                    {palettes.map((p) => (
+                      <button
+                        key={p.name}
+                        onClick={() =>
+                          dispatch({
+                            type: "appearance",
+                            value: {
+                              ...save.appearance,
+                              shirt: p.shirt,
+                              pants: p.pants,
+                              accent: p.accent,
+                            },
+                          })
+                        }
+                      >
+                        <i style={{ background: p.shirt }} />
+                        <i style={{ background: p.pants }} />
+                        {p.name}
+                      </button>
+                    ))}
                   </div>
                 </fieldset>
                 <button
@@ -838,6 +1057,19 @@ export default function App() {
                 </span>
                 <h2>我的冒险背包</h2>
                 <p>每一次发现，都成为你世界的一部分。</p>
+                <div className="badge-shelf">
+                  {save.tasks.badges.length ? (
+                    tasks
+                      .filter((t) => save.tasks.badges.includes(t.id))
+                      .map((t) => (
+                        <span key={t.id}>
+                          {t.icon} {t.badge}
+                        </span>
+                      ))
+                  ) : (
+                    <span>完成可选任务，收集森林徽章。</span>
+                  )}
+                </div>
                 <div className="inventory">
                   <div>
                     <span>▰</span>
@@ -874,7 +1106,7 @@ export default function App() {
                 <span className="eyebrow">THE FOREST’S LITTLE RIDDLE</span>
                 <h2>{q ? "智慧打开宝箱" : "宝箱里的礼物"}</h2>
                 <div className="quiz-steps">
-                  {level.questions.map((item, i) => (
+                  {save.questionSet.questions.map((item, i) => (
                     <span
                       className={i < save.solved.length ? "answered" : ""}
                       key={item.id}

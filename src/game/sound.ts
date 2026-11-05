@@ -1,4 +1,8 @@
 // Original local UI tones. No network, microphone or paid speech service.
+let effectsVolume = 0.65;
+export function setEffectsVolume(v: number) {
+  effectsVolume = v;
+}
 let context: AudioContext | undefined;
 let audioMuted = false,
   generation = 0;
@@ -46,7 +50,10 @@ export function playTone(
           oscillator.type = "sine";
           oscillator.frequency.value = hz;
           gain.gain.setValueAtTime(0, time);
-          gain.gain.linearRampToValueAtTime(0.065, time + 0.015);
+          gain.gain.linearRampToValueAtTime(
+            Math.max(0.0001, 0.06 * effectsVolume),
+            time + 0.015,
+          );
           gain.gain.exponentialRampToValueAtTime(0.001, time + 0.15);
           oscillator.connect(gain);
           gain.connect(ctx.destination);

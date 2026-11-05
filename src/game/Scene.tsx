@@ -25,6 +25,7 @@ import {
   type Vec3,
 } from "./world";
 import level from "../data/level1.json";
+import { taskMarkers, stumps } from "./tasks";
 import type { Save } from "./state";
 export type Status = {
   x: number;
@@ -45,10 +46,23 @@ export type SceneProps = {
   onBump: () => void;
   controller: React.RefObject<Controller | null>;
   onReady: () => void;
+  onTaskStep: (task: string, step: string) => void;
+  onParkourReset: () => void;
 };
 const temp = new THREE.Object3D(),
   color = new THREE.Color();
 const PLAYER_DATA = { player: true };
+const monsterSafeZones = [
+  ...checkpoints.map((position) => ({ position, radius: 2.4 })),
+  { position: [3.8, 0, 19] as Vec3, radius: 4 },
+  { position: animals[2].position, radius: 2.8 },
+  ...taskMarkers
+    .filter((m) => m.task === "explore" && m.id !== "bridge")
+    .map((m) => ({
+      position: m.position,
+      radius: m.id === "treehouse" ? 2.8 : 2.4,
+    })),
+];
 const LOCK_ROTATIONS: [boolean, boolean, boolean] = [false, false, false];
 function FixedBox({ p, s, c }: { p: Vec3; s: Vec3; c: string }) {
   return (
@@ -75,7 +89,7 @@ function Forest() {
       leaves.current!.setMatrixAt(i, temp.matrix);
       leaves.current!.setColorAt(
         i,
-        color.set(["#5e995f", "#74ad67", "#4f8557"][i % 3]),
+        color.set(["#279b50", "#55be3e", "#16834b"][i % 3]),
       );
       temp.position.set(x, 4.9, z);
       temp.scale.set(1.9 * size, 1.1, 1.9 * size);
@@ -107,7 +121,7 @@ function Forest() {
       </instancedMesh>
       <instancedMesh ref={tops} args={[undefined, undefined, trees.length]}>
         <boxGeometry />
-        <meshLambertMaterial color="#90ba6a" />
+        <meshLambertMaterial color="#92db4c" />
       </instancedMesh>
       {trees.map(([x, , z], i) => (
         <RigidBody
@@ -125,13 +139,13 @@ function Forest() {
 const Landscape = memo(function Landscape() {
   return (
     <BakedVoxels>
-      <FixedBox p={[0, -0.5, 10.5]} s={[44, 1, 23]} c="#8cb969" />
-      <FixedBox p={[0, -0.5, -17.5]} s={[44, 1, 21]} c="#88b568" />
+      <FixedBox p={[0, -0.5, 11]} s={[44, 1, 24]} c="#70bd45" />
+      <FixedBox p={[0, -0.5, -18]} s={[44, 1, 22]} c="#60b748" />
       <Box p={[0, -0.8, -4]} s={[44, 0.4, 6]} c="#70aaa0" />
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.13, -4]}>
         <planeGeometry args={[44, 6]} />
         <meshStandardMaterial
-          color="#61c4d1"
+          color="#26b9e6"
           roughness={0.22}
           metalness={0.13}
           transparent
@@ -206,7 +220,7 @@ const Landscape = memo(function Landscape() {
           <Box p={[x, 0.8, -22]} s={[1.5, 1.5, 1.2]} c="#74a55c" />
         </group>
       ))}
-      {Array.from({ length: 36 }, (_, i) => {
+      {Array.from({ length: 100 }, (_, i) => {
         const x = ((i * 13) % 35) - 17,
           z = ((i * 17) % 45) - 25;
         if (z < -1 && z > -7) return null;
@@ -216,7 +230,7 @@ const Landscape = memo(function Landscape() {
             <Box
               p={[x, 0.4, z]}
               s={[0.28, 0.16, 0.28]}
-              c={["#f5d97e", "#f4e9d0", "#dca9b3"][i % 3]}
+              c={["#ffe653", "#c890ff", "#ff69aa"][i % 3]}
             />
           </group>
         );
@@ -471,7 +485,7 @@ function Monsters({
   bumpRef.current = onBump;
   useFrame(({ clock }, dt) => {
     const target = player.current?.translation();
-    dt = Math.min(dt, 0.04);
+    dt = Math.min(dt, 1 / 30);
     points.forEach((p, i) => {
       const active =
         !target ||
@@ -503,11 +517,11 @@ function Monsters({
         // Monsters stay on their bank, leaving the bridge and safe flags peaceful.
         p.z =
           monsterStarts[i][2] > -1 ? Math.max(0.8, p.z) : Math.min(-8.8, p.z);
-        for (const safe of checkpoints) {
-          if (distance(p, safe) < 2.4) {
+        for (const { position: safe, radius } of monsterSafeZones) {
+          if (distance(p, safe) < radius) {
             const away = new THREE.Vector2(p.x - safe[0], p.z - safe[2]);
             if (away.length() < 0.01) away.set(1, 0);
-            away.setLength(2.4);
+            away.setLength(radius);
             p.x = safe[0] + away.x;
             p.z = safe[2] + away.y;
           }
@@ -613,6 +627,8 @@ export function Scene({
   onBump,
   controller,
   onReady,
+  onTaskStep,
+  onParkourReset,
 }: SceneProps) {
   const body = useRef<RapierRigidBody>(null),
     visual = useRef<THREE.Group>(null);
@@ -623,8 +639,19 @@ export function Scene({
     onInteract,
     onCheckpoint,
     onBump,
+    onTaskStep,
+    onParkourReset,
   });
-  props.current = { save, paused, onStatus, onInteract, onCheckpoint, onBump };
+  props.current = {
+    save,
+    paused,
+    onStatus,
+    onInteract,
+    onCheckpoint,
+    onBump,
+    onTaskStep,
+    onParkourReset,
+  };
   const { camera, gl } = useThree(),
     { rapier, world } = useRapier();
   const [walk, setWalk] = useState(0);
@@ -695,7 +722,7 @@ export function Scene({
     if (!rb) return;
     const p = rb.translation(),
       s = props.current;
-    delta = Math.min(delta, 0.04);
+    delta = Math.min(delta, 1 / 30);
     if (!initialized.current) {
       initialized.current = true;
       camera.position.set(p.x, p.y + 6, p.z + 9);
@@ -743,6 +770,31 @@ export function Scene({
         if (i > s.save.checkpoint && distance(p, point) < 1.6 && p.y > 0)
           s.onCheckpoint(i);
       });
+      if (s.save.tasks.active === "parkour") {
+        const done = s.save.tasks.steps.parkour ?? [];
+        stumps.forEach((point, i) => {
+          if (
+            grounded &&
+            distance(p, point) < 0.83 &&
+            p.y > point[1] * 2 + 0.48 &&
+            done.length === i
+          )
+            s.onTaskStep("parkour", `stump-${i + 1}`);
+        });
+        if (
+          done.length > 0 &&
+          done.length < 3 &&
+          grounded &&
+          p.y < 0.85 &&
+          p.z > 15 &&
+          p.x > 2
+        ) {
+          rb.setTranslation({ x: 3.8, y: 1.2, z: 22 }, true);
+          rb.setLinvel({ x: 0, y: 0, z: 0 }, true);
+          s.onParkourReset();
+          clearInput();
+        }
+      }
       if (input.interact) {
         input.interact = false;
         s.onInteract();
@@ -780,6 +832,14 @@ export function Scene({
         )
         .map((a) => a.id);
       if (!near && nearbyAnimals.length) near = nearbyAnimals[0];
+      const marker = taskMarkers.find(
+        (m) =>
+          m.task === s.save.tasks.active &&
+          !(s.save.tasks.steps[m.task] ?? []).includes(m.id) &&
+          distance(p, m.position) < 2 &&
+          Math.abs(p.y - m.position[1]) < 2,
+      );
+      if (marker) near = `marker:${marker.id}`;
       s.onStatus({
         x: p.x,
         y: p.y,
@@ -798,8 +858,8 @@ export function Scene({
   });
   return (
     <>
-      <color attach="background" args={["#b6dddc"]} />
-      <fog attach="fog" args={["#c1dfcd", 26, 62]} />
+      <color attach="background" args={["#65c7f7"]} />
+      <fog attach="fog" args={["#a8e7cd", 26, 62]} />
       <Sky
         distance={450000}
         sunPosition={[70, 80, 30]}
@@ -811,7 +871,7 @@ export function Scene({
       <directionalLight
         position={[-12, 25, 8]}
         intensity={2.1}
-        castShadow
+        castShadow={!save.lowQuality}
         shadow-mapSize={[1024, 1024]}
         shadow-camera-left={-25}
         shadow-camera-right={25}
@@ -820,6 +880,42 @@ export function Scene({
         shadow-normalBias={0.04}
       />
       <Landscape />
+      <Box p={[3.8, 0.03, 22]} s={[1.4, 0.06, 1]} c="#ffdb63" />
+      {stumps.map((p, i) => (
+        <FixedBox
+          key={i}
+          p={p}
+          s={[1.1, p[1] * 2, 1.1]}
+          c={["#a66d33", "#bd8040", "#d99d49"][i]}
+        />
+      ))}
+      {taskMarkers
+        .filter((m) => m.task === save.tasks.active)
+        .map((m) => (
+          <group
+            key={m.id}
+            position={m.position}
+            onClick={(e) => {
+              e.stopPropagation();
+              onInteract(`marker:${m.id}`);
+            }}
+          >
+            <Box p={[0, 0.9, 0]} s={[0.12, 1.8, 0.12]} c="#694023" />
+            <Box
+              p={[0.35, 1.55, 0]}
+              s={[0.7, 0.5, 0.12]}
+              c={
+                (save.tasks.steps[m.task] ?? []).includes(m.id)
+                  ? "#fcd04b"
+                  : "#26bce8"
+              }
+            />
+            <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.03, 0]}>
+              <ringGeometry args={[0.6, 0.85, 4]} />
+              <meshBasicMaterial color="#fff4af" side={THREE.DoubleSide} />
+            </mesh>
+          </group>
+        ))}
       <RigidBody
         ref={body}
         position={spawn}

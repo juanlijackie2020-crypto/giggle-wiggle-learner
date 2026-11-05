@@ -1,5 +1,7 @@
 # 第一关验收记录
 
+> 本文保留 V3.0 测试结果；最新升级结果见 [V3.1 实现与验证](V31_IMPLEMENTATION.md)。
+
 验收范围：[PRD V3.0](PRD_V3.0.md) 的 M1 第一关与公共系统。以下为既有实现的测试记录，不涵盖 [PRD V3.1](PRD.md) 新需求。2026-11-04 已收到六关全景图附件，实际游戏视觉对照仍 **未验证**。功能对应见 [PRD 对照](IMPLEMENTATION_BASELINE.md)。
 
 ## Checklist

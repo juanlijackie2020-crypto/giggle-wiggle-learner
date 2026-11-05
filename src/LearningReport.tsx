@@ -1,8 +1,14 @@
 import { useState } from "react";
-import type { Save } from "./game/state";
+import type { Save, Action } from "./game/state";
 import { emptyProgress } from "./game/state";
-import level from "./data/level1.json";
-export function LearningReport({ save }: { save: Save }) {
+import { difficulties, type Difficulty } from "./game/questions";
+export function LearningReport({
+  save,
+  dispatch,
+}: {
+  save: Save;
+  dispatch: (a: Action) => void;
+}) {
   const [confirmed, setConfirmed] = useState(false);
   if (!confirmed)
     return (
@@ -18,17 +24,59 @@ export function LearningReport({ save }: { save: Save }) {
         <p>此入口用于避免误触，不是密码保护。</p>
       </>
     );
-  const rows = level.questions.map((q) => ({
-    q,
-    r: save.questionStats[q.id] ?? emptyProgress(),
-  }));
-  const attempts = rows.reduce((n, { r }) => n + r.attemptCount, 0),
-    correct = rows.reduce((n, { r }) => n + r.correctCount, 0),
-    hints = rows.reduce((n, { r }) => n + r.hintCount, 0);
+  const rows = [save.questionSet, ...save.history].flatMap((set) =>
+    set.questions.map((q) => ({
+      difficulty:
+        set.difficulty === "legacy"
+          ? "V3.0 历史题"
+          : difficulties[set.difficulty].label,
+      q,
+      r: save.questionStats[q.id] ?? emptyProgress(),
+    })),
+  );
+  const attempts = rows.reduce(
+      (n, { r }) => n + r.attemptCount,
+      save.archivedTotals.attempts,
+    ),
+    correct = rows.reduce(
+      (n, { r }) => n + r.correctCount,
+      save.archivedTotals.correct,
+    ),
+    hints = rows.reduce(
+      (n, { r }) => n + r.hintCount,
+      save.archivedTotals.hints,
+    );
   return (
     <>
       <span className="eyebrow">LEARNING TOGETHER</span>
       <h2>家长学习记录</h2>
+      <label className="difficulty-label">
+        下一轮计算题难度{" "}
+        <select
+          aria-label="计算题难度"
+          value={save.difficulty}
+          onChange={(e) =>
+            dispatch({
+              type: "difficulty",
+              value: e.target.value as Difficulty,
+            })
+          }
+        >
+          {Object.entries(difficulties).map(([key, value]) => (
+            <option key={key} value={key}>
+              {value.label}
+            </option>
+          ))}
+        </select>
+      </label>
+      <p>
+        当前题组：
+        {save.questionSet.difficulty === "legacy"
+          ? "V3.0 历史固定题"
+          : difficulties[save.questionSet.difficulty].label}
+        。设置在重新开始关卡后生效，刷新或答错不会换题。保留最近 100
+        轮明细，更早记录纳入累计统计。
+      </p>
       <p>
         本浏览器累计记录 · 作答 {attempts} 次 · 正确率{" "}
         {attempts ? `${Math.round((correct / attempts) * 100)}%` : "暂无"} ·
@@ -39,6 +87,7 @@ export function LearningReport({ save }: { save: Save }) {
           <thead>
             <tr>
               <th>题目 / 参考答案</th>
+              <th>难度</th>
               <th>作答</th>
               <th>提示</th>
               <th>首次作答</th>
@@ -46,9 +95,10 @@ export function LearningReport({ save }: { save: Save }) {
             </tr>
           </thead>
           <tbody>
-            {rows.map(({ q, r }) => (
+            {rows.map(({ q, r, difficulty }) => (
               <tr key={q.id}>
                 <td>{q.text.replace("?", String(q.answer))}</td>
+                <td>{difficulty}</td>
                 <td>{r.attemptCount}</td>
                 <td>{r.hintCount}</td>
                 <td>

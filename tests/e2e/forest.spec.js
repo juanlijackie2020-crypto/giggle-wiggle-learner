@@ -12,16 +12,18 @@ const position = async (page) =>
   page
     .getByTestId("world")
     .evaluate((e) => ({ x: +e.dataset.x, y: +e.dataset.y, z: +e.dataset.z }));
-async function walk(page, x, z) {
+async function walk(page, x, z, tolerance = 0.9) {
   for (let i = 0; i < 55; i++) {
     const p = await position(page);
     if (i % 15 === 0) console.log("walk", x, z, p);
-    if (Math.hypot(p.x - x, p.z - z) < 0.9) return;
+    if (Math.hypot(p.x - x, p.z - z) < tolerance) return;
     const dx = x - p.x,
       dz = z - p.z;
     const keys = [];
-    if (Math.abs(dx) > 0.4) keys.push(dx > 0 ? "d" : "a");
-    if (Math.abs(dz) > 0.4) keys.push(dz > 0 ? "s" : "w");
+    if (Math.abs(dx) > Math.min(0.4, tolerance / 2))
+      keys.push(dx > 0 ? "d" : "a");
+    if (Math.abs(dz) > Math.min(0.4, tolerance / 2))
+      keys.push(dz > 0 ? "s" : "w");
     for (const key of keys) await page.keyboard.down(key);
     await page.waitForTimeout(
       Math.min(800, Math.max(110, ((Math.hypot(dx, dz) - 0.4) / 4.2) * 1000)),
@@ -96,10 +98,18 @@ test("desktop: actual 3D movement, collect, cross bridge, retry maths, reward an
   await walk(page, 0, -20);
   await page.keyboard.press("e");
   await expect(page.getByRole("dialog")).toBeVisible();
-  await page.getByRole("button", { name: "6", exact: true }).click();
-  await expect(page.locator(".hint")).toContainText("一起数一数");
-  for (const answer of ["7", "4", "8"])
-    await page.getByRole("button", { name: answer, exact: true }).click();
+  const questions = await page.evaluate(
+    () =>
+      JSON.parse(localStorage.getItem("qianqian-forest-v1")).questionSet
+        .questions,
+  );
+  const wrong = questions[0].options.find((n) => n !== questions[0].answer);
+  await page.getByRole("button", { name: String(wrong), exact: true }).click();
+  await expect(page.locator(".hint")).toContainText(questions[0].hint);
+  for (const q of questions)
+    await page
+      .getByRole("button", { name: String(q.answer), exact: true })
+      .click();
   await page.getByRole("button", { name: "开启宝箱 · ＋10 木头方块" }).click();
   await page.getByRole("button", { name: "打开背包" }).click();
   await expect(page.getByTestId("reward-count")).toHaveText("10");
@@ -180,6 +190,8 @@ test("touch viewport: real touch joystick, jump, interact, camera and resize", a
   await page.waitForTimeout(800);
   await page.getByRole("button", { name: "互动", exact: true }).tap();
   await expect(page.locator(".toast")).toContainText(/靠近|小兔子/);
+  if (await page.getByRole("dialog").count())
+    await page.getByRole("button", { name: "关闭", exact: true }).click();
   await swipe(290, 370, -120, 0);
   await swipe(290, 370, -120, 0);
   const before = await position(page);
@@ -357,33 +369,79 @@ test("blocked browser storage warns without preventing play", async ({
   await expect.poll(async () => (await position(page)).z).toBeLessThan(13.5);
 });
 
-test("V3 animal clues, sound mute, pause and saved volume controls", async ({
+test("V3.1 real bundled dialogue playback, captions, mute, pause and saved controls", async ({
   page,
 }) => {
   await page.addInitScript(() => {
-    window.__tones = 0;
-    const start = OscillatorNode.prototype.start;
-    OscillatorNode.prototype.start = function (...args) {
-      window.__tones++;
-      return start.apply(this, args);
+    window.__voices = [];
+    const play = HTMLMediaElement.prototype.play;
+    HTMLMediaElement.prototype.play = function (...args) {
+      window.__voices.push(this);
+      return play.apply(this, args);
     };
   });
   await start(page);
   await page.keyboard.press("e");
-  await expect(page.locator(".toast")).toContainText("小兔子：");
+  await expect(page.getByRole("dialog")).toHaveAccessibleName("动物对话");
+  await expect(page.locator(".subtitle")).toContainText("主角");
   await expect
-    .poll(() => page.evaluate(() => window.__tones))
-    .toBeGreaterThan(0);
-  await page.getByRole("button", { name: "静音音效", exact: true }).click();
-  const tones = await page.evaluate(() => window.__tones);
-  await page.keyboard.press("e");
-  await expect(page.locator(".toast")).toContainText("小兔子：");
-  expect(await page.evaluate(() => window.__tones)).toBe(tones);
+    .poll(() =>
+      page.evaluate(() =>
+        window.__voices.some((a) => a.currentTime > 0.15 && !a.paused),
+      ),
+    )
+    .toBe(true);
+  await page.getByRole("button", { name: "询问线索", exact: false }).click();
+  await expect(page.locator(".subtitle")).toContainText("探险的提示");
+  await page.getByRole("button", { name: "跳过这句" }).click();
+  await expect(page.locator(".subtitle")).toContainText("小兔子");
+  await expect(page.locator(".subtitle")).toContainText("木头");
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        window.__voices.some(
+          (a) => a.currentSrc.includes("animal-0-clue") && a.currentTime > 0.15,
+        ),
+      ),
+    )
+    .toBe(true);
+  await page.getByRole("button", { name: "静音所有声音" }).click();
+  await expect
+    .poll(() => page.evaluate(() => window.__voices.every((a) => a.paused)))
+    .toBe(true);
+  await page.getByRole("button", { name: "关闭", exact: true }).click();
   await page.getByRole("button", { name: "暂停游戏", exact: true }).click();
-  await expect(page.getByRole("dialog")).toHaveAccessibleName("暂停游戏");
+  const pauseDialog = page.getByRole("dialog");
+  await pauseDialog
+    .getByRole("button", { name: "开启音效", exact: true })
+    .click();
+  const slider = page.getByRole("slider", { name: "对白音量" });
+  await slider.focus();
+  await slider.press("Home");
+  for (let i = 0; i < 6; i++) await slider.press("ArrowRight");
+  await expect(slider).toHaveValue("0.3");
+  await page.getByRole("button", { name: "试听对白", exact: true }).click();
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        window.__voices.some(
+          (a) =>
+            !a.paused &&
+            a.currentTime > 0.1 &&
+            Math.abs(a.volume - 0.3) < 0.001,
+        ),
+      ),
+    )
+    .toBe(true);
+  await pauseDialog
+    .getByRole("button", { name: "静音音效", exact: true })
+    .click();
+  await expect
+    .poll(() => page.evaluate(() => window.__voices.every((a) => a.paused)))
+    .toBe(true);
   const before = await position(page);
   await page.keyboard.down("w");
-  await page.waitForTimeout(500);
+  await page.waitForTimeout(400);
   await page.keyboard.up("w");
   expect(Math.abs((await position(page)).z - before.z)).toBeLessThan(0.1);
   await page.getByRole("button", { name: "继续游戏 →" }).click();
@@ -469,4 +527,259 @@ test("V3 progressive hints, parent-only answers, learning records and reward-pre
   expect(data.rewardClaims).toEqual(["forest-amber:wood-blocks:v1"]);
   expect(data.questionStats["add-3-4"].attemptCount).toBe(3);
   expect(data.questionStats["add-3-4"].runErrors).toBe(0);
+});
+
+test("V3.1 eight colors, six outfits, palette preview and refresh", async ({
+  page,
+}) => {
+  await start(page);
+  await page.getByRole("button", { name: "自定义角色" }).click();
+  await expect(page.locator(".outfits button")).toHaveCount(6);
+  await expect(page.getByRole("button", { name: /衣服颜色/ })).toHaveCount(8);
+  await page.getByRole("button", { name: "兔耳连帽装", exact: false }).click();
+  await page.getByRole("button", { name: "星光梦境", exact: false }).click();
+  await expect(page.locator(".avatar-preview canvas")).toBeVisible();
+  await page.screenshot({ path: "/tmp/forest-v31-avatar.png", fullPage: true });
+  await page.getByRole("button", { name: "保存，返回森林 →" }).click();
+  await page.reload();
+  await start(page);
+  const s = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem("qianqian-forest-v1")),
+  );
+  expect(s.appearance).toMatchObject({
+    outfit: "bunny",
+    shirt: "#9857ce",
+    pants: "#453b6a",
+  });
+});
+
+test("V3.1 animal side quest is playable, persists and earns one badge", async ({
+  page,
+}) => {
+  await start(page);
+  await page.getByRole("button", { name: "选择任务", exact: true }).click();
+  await page
+    .locator(".quest-grid article")
+    .filter({ hasText: "森林好朋友" })
+    .getByRole("button")
+    .click();
+  await page.getByRole("button", { name: "关闭", exact: true }).click();
+  await page.keyboard.press("e");
+  await page.getByRole("button", { name: "打个招呼", exact: false }).click();
+  await page.getByRole("button", { name: "关闭", exact: true }).click();
+  await walk(page, -2.5, 8, 0.3);
+  await page.keyboard.press("e");
+  await expect(page.getByRole("dialog")).toContainText("和松鼠聊聊天");
+  await page.getByRole("button", { name: "询问线索", exact: false }).click();
+  await page.getByRole("button", { name: "关闭", exact: true }).click();
+  await page.getByRole("button", { name: "打开背包" }).click();
+  await expect(page.locator(".badge-shelf")).toContainText("森林知己");
+  await page.reload();
+  await start(page);
+  const s = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem("qianqian-forest-v1")),
+  );
+  expect(s.tasks.badges).toEqual(["friends"]);
+  expect(s.tasks.steps.friends).toHaveLength(2);
+  expect(s.woodBlocks).toBe(0);
+});
+
+test("V3.1 audio failure has retry and subtitles without blocking play", async ({
+  page,
+}) => {
+  await page.route("**/audio/forest/*.mp3", (route) => route.abort());
+  await start(page);
+  await page.keyboard.press("e");
+  await expect(
+    page.getByRole("button", { name: "点此重试声音", exact: true }),
+  ).toBeVisible();
+  await expect(page.locator(".subtitle")).toContainText("你好");
+  await page.getByRole("button", { name: "询问线索", exact: false }).click();
+  await page.getByRole("button", { name: "跳过这句" }).click();
+  await expect(page.locator(".subtitle")).toContainText("木头");
+  await page.getByRole("button", { name: "关闭", exact: true }).click();
+  await walk(page, 0, 11);
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+});
+
+test("V3.1 Pages subpath serves all bundled voices and permits real playback", async ({
+  page,
+}) => {
+  const base = "http://127.0.0.1:4174/giggle-wiggle-learner/";
+  await page.goto(base);
+  await page.getByRole("button", { name: "创建角色，开始冒险 →" }).click();
+  await page.getByRole("button", { name: "准备好了，出发 →" }).click();
+  for (const id of [
+    "hero-hello",
+    "hero-clue",
+    "hero-thanks",
+    ...Array.from({ length: 6 }, (_, i) => `animal-${i}-hello`),
+    ...Array.from({ length: 6 }, (_, i) => `animal-${i}-clue`),
+  ]) {
+    const response = await page.request.get(
+      base + "audio/forest/" + id + ".mp3",
+    );
+    expect(response.ok()).toBe(true);
+    expect((await response.body()).length).toBeGreaterThan(1000);
+  }
+  await page.keyboard.press("e");
+  await expect(page.getByRole("dialog")).toHaveAccessibleName("动物对话");
+  await expect(page.locator(".voice-status")).toHaveText("正在说话…");
+});
+
+test("V3.1 exploration flags are real spatial interactions and persist", async ({
+  page,
+}) => {
+  await start(page);
+  await page.getByRole("button", { name: "选择任务", exact: true }).click();
+  await page
+    .locator(".quest-grid article")
+    .filter({ hasText: "森林发现家" })
+    .getByRole("button")
+    .click();
+  await page.getByRole("button", { name: "关闭", exact: true }).click();
+  // Complete the locations out of list order: the tracker must suggest the
+  // first unfinished step, not use the number of completed steps as an index.
+  await walk(page, 0, 0, 0.4);
+  await walk(page, 0, -9, 0.4);
+  await walk(page, 0, -16, 0.4);
+  await page.keyboard.press("e");
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          JSON.parse(localStorage.getItem("qianqian-forest-v1")).tasks.steps
+            .explore ?? [],
+      ),
+    )
+    .toContain("amber-grove");
+  await expect(page.locator(".tracked-task small")).toContainText("桥边安全点");
+  await walk(page, 0, -9, 0.4);
+  await walk(page, -4.8, -8.5, 0.4);
+  await page.keyboard.press("e");
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          JSON.parse(localStorage.getItem("qianqian-forest-v1")).tasks.steps
+            .explore ?? [],
+      ),
+    )
+    .toContain("treehouse");
+  await expect(page.locator(".tracked-task small")).toContainText("桥边安全点");
+  await walk(page, 0, -9, 0.4);
+  await walk(page, 0, 0, 0.4);
+  await walk(page, 2, 0, 0.4);
+  await page.keyboard.press("e");
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          JSON.parse(localStorage.getItem("qianqian-forest-v1")).tasks.badges,
+      ),
+    )
+    .toContain("explore");
+
+  await page.getByRole("button", { name: "选择任务", exact: true }).click();
+  await expect(
+    page.locator(".quest-grid article").filter({ hasText: "森林发现家" }),
+  ).toContainText("3/3");
+});
+
+test("V3.1 parkour physically jumps onto three stumps before the finish flag", async ({
+  page,
+}) => {
+  await start(page);
+  await page.getByRole("button", { name: "选择任务", exact: true }).click();
+  await page
+    .locator(".quest-grid article")
+    .filter({ hasText: "木桩小勇士" })
+    .getByRole("button")
+    .click();
+  await page.getByRole("button", { name: "关闭", exact: true }).click();
+  await walk(page, 0, 22);
+  await walk(page, 3.8, 22, 0.18);
+  console.log("course start", await position(page));
+  for (const [i, z, retry] of [
+    [0, 20.5, true],
+    [0, 20.5, false],
+    [1, 19, false],
+    [2, 17.5, false],
+  ]) {
+    await expect(page.getByTestId("world")).toHaveAttribute(
+      "data-grounded",
+      "true",
+    );
+    // Release the real movement input in the same browser event loop as the position
+    // update, avoiding CDP round-trip overshoot on software-rendered CI GPUs.
+    // This observes rendered position only; it never changes physics or save state.
+    await page.evaluate((target) => {
+      const world = document.querySelector("[data-testid=world]");
+      const observer = new MutationObserver(() => {
+        if (Number(world.dataset.z) <= target + 0.15) {
+          window.dispatchEvent(
+            new KeyboardEvent("keyup", {
+              code: "KeyW",
+              key: "w",
+              bubbles: true,
+            }),
+          );
+          observer.disconnect();
+        }
+      });
+      observer.observe(world, {
+        attributes: true,
+        attributeFilter: ["data-z"],
+      });
+      setTimeout(() => observer.disconnect(), 5000);
+    }, z);
+    await page.keyboard.down("w");
+    await page.keyboard.press("Space");
+    await expect
+      .poll(async () => (await position(page)).z, {
+        intervals: [40],
+        timeout: 5000,
+      })
+      .toBeLessThan(z + 0.15);
+    await page.keyboard.up("w");
+    console.log("jump landing", i, await position(page));
+    await expect
+      .poll(
+        () =>
+          page.evaluate(
+            () =>
+              JSON.parse(localStorage.getItem("qianqian-forest-v1")).tasks.steps
+                .parkour ?? [],
+          ),
+        { timeout: 6000 },
+      )
+      .toContain(`stump-${i + 1}`);
+    if (retry) {
+      await page.keyboard.down("a");
+      await expect
+        .poll(
+          () =>
+            page.evaluate(
+              () =>
+                JSON.parse(localStorage.getItem("qianqian-forest-v1")).tasks
+                  .steps.parkour ?? [],
+            ),
+          { timeout: 6000 },
+        )
+        .toHaveLength(0);
+      await page.keyboard.up("a");
+      await expect(page.locator(".toast")).toContainText("回到木桩起点");
+      await walk(page, 3.8, 22, 0.18);
+    }
+  }
+  await walk(page, 3.8, 16);
+  await page.keyboard.press("e");
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          JSON.parse(localStorage.getItem("qianqian-forest-v1")).tasks.badges,
+      ),
+    )
+    .toContain("parkour");
 });

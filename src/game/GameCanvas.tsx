@@ -1,7 +1,16 @@
 import { Suspense, useEffect, useRef } from "react";
-import { Canvas, useThree } from "@react-three/fiber";
-import { Physics } from "@react-three/rapier";
+import { Canvas, useThree, useFrame } from "@react-three/fiber";
+import { Physics, useRapier } from "@react-three/rapier";
 import { Scene, type SceneProps } from "./Scene";
+// Keep slow devices from advancing half a second of physics between input frames.
+// Rapier still uses 1/60 fixed substeps; a slow frame advances at most two steps.
+function StablePhysicsStep({ paused }: { paused: boolean }) {
+  const { step } = useRapier();
+  useFrame((_, delta) => {
+    if (!paused) step(Math.min(delta, 1 / 30));
+  }, -1);
+  return null;
+}
 function ContextMonitor({ onError }: { onError: (message: string) => void }) {
   const { gl } = useThree();
   const latest = useRef(onError);
@@ -28,8 +37,13 @@ export default function GameCanvas({
 }) {
   return (
     <Canvas
-      shadows
-      dpr={[1, matchMedia("(pointer:coarse)").matches ? 1 : 1.5]}
+      shadows={!props.save.lowQuality}
+      dpr={[
+        1,
+        props.save.lowQuality || matchMedia("(pointer:coarse)").matches
+          ? 1
+          : 1.5,
+      ]}
       camera={{ fov: 52, near: 0.1, far: 90, position: [0, 8, 23] }}
       gl={{
         antialias: false,
@@ -49,7 +63,13 @@ export default function GameCanvas({
     >
       <ContextMonitor onError={onError} />
       <Suspense fallback={null}>
-        <Physics gravity={[0, -18, 0]} timeStep={1 / 60} paused={props.paused}>
+        <Physics
+          gravity={[0, -18, 0]}
+          timeStep={1 / 60}
+          paused
+          interpolate={false}
+        >
+          <StablePhysicsStep paused={props.paused} />
           <Scene {...props} />
         </Physics>
       </Suspense>
