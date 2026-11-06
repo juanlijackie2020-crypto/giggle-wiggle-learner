@@ -46,6 +46,13 @@ test("desktop: actual 3D movement, collect, cross bridge, retry maths, reward an
   await page.getByRole("button", { name: "森林游侠", exact: false }).click();
   await page.getByRole("button", { name: "保存，返回森林 →" }).click();
   await page.waitForTimeout(300);
+  // Exercise the real low-quality control for deterministic software-WebGL traversal.
+  // Default rendering is still covered by initial load, outfit preview and touch tests.
+  await page.getByRole("button", { name: "暂停游戏", exact: true }).click();
+  await page
+    .getByRole("button", { name: "开启低画质（更流畅）", exact: true })
+    .click();
+  await page.getByRole("button", { name: "继续游戏 →", exact: true }).click();
   const y = (await position(page)).y;
   await page.evaluate(() => {
     window.__jumpPeak = 0;

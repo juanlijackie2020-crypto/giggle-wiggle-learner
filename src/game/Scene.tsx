@@ -10,6 +10,10 @@ import {
 } from "@react-three/rapier";
 import * as THREE from "three";
 import { Avatar, Box } from "./Avatar";
+import { monsterModels, MONSTER_PARTS } from "./monsterModel";
+import { ForestExpansion } from "./ForestExpansion";
+import { WORLD, oreDeposits } from "./expansion";
+import { AnimalModel } from "./AnimalModel";
 import { BakedVoxels } from "./BakedVoxels";
 import { input, clearInput } from "./input";
 import {
@@ -36,7 +40,7 @@ export type Status = {
   draws: number;
   nearbyAnimals: string[];
 };
-export type Controller = { respawn: () => void };
+export type Controller = { respawn: () => void; swing: () => void };
 export type SceneProps = {
   save: Save;
   paused: boolean;
@@ -75,14 +79,20 @@ function FixedBox({ p, s, c }: { p: Vec3; s: Vec3; c: string }) {
 function Forest() {
   const trunks = useRef<THREE.InstancedMesh>(null),
     leaves = useRef<THREE.InstancedMesh>(null),
-    tops = useRef<THREE.InstancedMesh>(null);
+    tops = useRef<THREE.InstancedMesh>(null),
+    pixels = useRef<THREE.InstancedMesh>(null);
   useEffect(() => {
     trees.forEach(([x, , z], i) => {
       const size = 0.85 + (i % 3) * 0.16;
+      temp.rotation.set(0, 0, 0);
       temp.position.set(x, 1.3, z);
       temp.scale.set(0.5, 2.6, 0.5);
       temp.updateMatrix();
       trunks.current!.setMatrixAt(i, temp.matrix);
+      trunks.current!.setColorAt(
+        i,
+        color.set(i > 63 && i % 3 === 0 ? "#eee5cc" : "#916032"),
+      );
       temp.position.set(x, 3.4, z);
       temp.scale.set(2.6 * size, 2.5 * size, 2.6 * size);
       temp.updateMatrix();
@@ -95,8 +105,29 @@ function Forest() {
       temp.scale.set(1.9 * size, 1.1, 1.9 * size);
       temp.updateMatrix();
       tops.current!.setMatrixAt(i, temp.matrix);
+      for (let j = 0; j < 12; j++) {
+        const face = j % 4;
+        const row = Math.floor(j / 4);
+        const spread = (row - 1) * 0.65 * size;
+        temp.position.set(
+          x +
+            (face === 0 ? -1 : face === 1 ? 1 : 0) * 1.31 * size +
+            (face > 1 ? spread : 0),
+          3 + row * 0.6,
+          z +
+            (face === 2 ? -1 : face === 3 ? 1 : 0) * 1.31 * size +
+            (face < 2 ? spread : 0),
+        );
+        temp.scale.set(face < 2 ? 0.025 : 0.48, 0.43, face < 2 ? 0.48 : 0.025);
+        temp.updateMatrix();
+        pixels.current!.setMatrixAt(i * 12 + j, temp.matrix);
+        pixels.current!.setColorAt(
+          i * 12 + j,
+          color.set(["#8ccc41", "#226e36", "#62b92e", "#abda58"][(i + j) % 4]),
+        );
+      }
     });
-    for (const r of [trunks, leaves, tops]) {
+    for (const r of [trunks, leaves, tops, pixels]) {
       r.current!.instanceMatrix.needsUpdate = true;
       r.current!.computeBoundingSphere();
     }
@@ -109,7 +140,7 @@ function Forest() {
         castShadow
       >
         <boxGeometry />
-        <meshLambertMaterial color="#98734b" />
+        <meshLambertMaterial />
       </instancedMesh>
       <instancedMesh
         ref={leaves}
@@ -122,6 +153,13 @@ function Forest() {
       <instancedMesh ref={tops} args={[undefined, undefined, trees.length]}>
         <boxGeometry />
         <meshLambertMaterial color="#92db4c" />
+      </instancedMesh>
+      <instancedMesh
+        ref={pixels}
+        args={[undefined, undefined, trees.length * 12]}
+      >
+        <boxGeometry />
+        <meshLambertMaterial />
       </instancedMesh>
       {trees.map(([x, , z], i) => (
         <RigidBody
@@ -139,11 +177,11 @@ function Forest() {
 const Landscape = memo(function Landscape() {
   return (
     <BakedVoxels>
-      <FixedBox p={[0, -0.5, 11]} s={[44, 1, 24]} c="#70bd45" />
-      <FixedBox p={[0, -0.5, -18]} s={[44, 1, 22]} c="#60b748" />
-      <Box p={[0, -0.8, -4]} s={[44, 0.4, 6]} c="#70aaa0" />
+      <FixedBox p={[0, -0.5, 18]} s={[80, 1, 38]} c="#70bd45" />
+      <FixedBox p={[0, -0.5, -27]} s={[80, 1, 40]} c="#60b748" />
+      <Box p={[0, -0.8, -4]} s={[80, 0.4, 6]} c="#70aaa0" />
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.13, -4]}>
-        <planeGeometry args={[44, 6]} />
+        <planeGeometry args={[80, 6]} />
         <meshStandardMaterial
           color="#26b9e6"
           roughness={0.22}
@@ -237,16 +275,16 @@ const Landscape = memo(function Landscape() {
       })}
       {/* World boundaries are physical; river recovery is handled by the player. */}
       {[
-        [-22.4, 2, -3],
-        [22.4, 2, -3],
+        [WORLD.minX - 0.4, 2, -5],
+        [WORLD.maxX + 0.4, 2, -5],
       ].map((p, i) => (
         <RigidBody key={i} type="fixed" colliders={false} position={p as Vec3}>
-          <CuboidCollider args={[0.4, 3, 27]} />
+          <CuboidCollider args={[0.4, 3, 43]} />
         </RigidBody>
       ))}
-      {[23, -29].map((z) => (
+      {[WORLD.maxZ, WORLD.minZ].map((z) => (
         <RigidBody key={z} type="fixed" colliders={false} position={[0, 2, z]}>
-          <CuboidCollider args={[23, 3, 0.4]} />
+          <CuboidCollider args={[41, 3, 0.4]} />
         </RigidBody>
       ))}
     </BakedVoxels>
@@ -371,14 +409,6 @@ const Animal = memo(
             ? Math.abs(Math.sin(t * 3)) * 0.12
             : 0;
     });
-    const c = [
-      "#eee4cf",
-      "#be9565",
-      "#b78a59",
-      "#d58e4d",
-      "#719fa6",
-      "#9c896c",
-    ][kind];
     return (
       <group
         ref={group}
@@ -389,79 +419,13 @@ const Animal = memo(
           onInteract();
         }}
       >
-        <BakedVoxels>
-          <Box
-            p={[0, 0.5, 0]}
-            s={kind === 1 ? [0.65, 0.65, 1.25] : [0.6, 0.5, 0.8]}
-            c={c}
-          />
-          <Box
-            p={[0, kind === 1 ? 1.25 : 0.85, -0.48]}
-            s={[0.45, 0.45, 0.45]}
-            c={c}
-          />
-          {[-0.18, 0.18].map((x) => (
-            <group key={x}>
-              <Box p={[x, 0.18, 0.25]} s={[0.15, 0.4, 0.15]} c={c} />
-              <Box p={[x, 0.18, -0.25]} s={[0.15, 0.4, 0.15]} c={c} />
-              <Box
-                p={[x, kind === 0 ? 1.3 : kind === 1 ? 1.65 : 1.12, -0.45]}
-                s={[0.12, kind === 0 ? 0.6 : 0.22, 0.15]}
-                c={c}
-              />
-              <Box
-                p={[x, kind === 1 ? 1.32 : 0.9, -0.72]}
-                s={[0.06, 0.07, 0.04]}
-                c="#263e3b"
-              />
-            </group>
-          ))}
-          <group rotation={[kind === 1 ? -0.7 : -0.5, 0, 0]}>
-            <Box
-              p={[0, 0.6, 0.72]}
-              s={
-                kind === 2
-                  ? [0.35, 0.8, 0.4]
-                  : kind === 1
-                    ? [0.15, 0.2, 1.1]
-                    : [0.24, 0.24, 0.6]
-              }
-              c={kind === 3 ? "#f5e1be" : c}
-            />
-          </group>
-          {kind === 4 && (
-            <>
-              <Box p={[-0.52, 0.65, 0]} s={[0.65, 0.1, 0.5]} c="#8dbab9" />
-              <Box p={[0.52, 0.65, 0]} s={[0.65, 0.1, 0.5]} c="#8dbab9" />
-              <Box p={[0, 0.8, -0.8]} s={[0.15, 0.15, 0.3]} c="#d9b55c" />
-            </>
-          )}
-          {kind === 5 &&
-            Array.from({ length: 9 }, (_, i) => (
-              <Box
-                key={i}
-                p={[((i % 3) - 1) * 0.22, 0.9, Math.floor(i / 3) * 0.24 - 0.2]}
-                s={[0.12, 0.35, 0.12]}
-                c="#645e48"
-              />
-            ))}
-          {kind === 1 && (
-            <>
-              <Box
-                p={[-0.22, 1.85, -0.45]}
-                s={[0.08, 0.55, 0.08]}
-                c="#93704d"
-              />
-              <Box p={[0.22, 1.85, -0.45]} s={[0.08, 0.55, 0.08]} c="#93704d" />
-            </>
-          )}
-        </BakedVoxels>
+        <AnimalModel kind={kind} />
       </group>
     );
   },
   (a, b) => a.kind === b.kind && a.index === b.index && a.paused === b.paused,
 );
-// Fixed pool of 24 sensor bodies; visual parts share nine instanced draws.
+// Fixed pool of 24 sensor bodies; detailed parts are instanced across the pool.
 function Monsters({
   player,
   paused,
@@ -473,7 +437,10 @@ function Monsters({
 }) {
   const bodies = useRef<(RapierRigidBody | null)[]>([]),
     parts = useMemo(
-      () => Array.from({ length: 9 }, () => createRef<THREE.InstancedMesh>()),
+      () =>
+        Array.from({ length: MONSTER_PARTS }, () =>
+          createRef<THREE.InstancedMesh>(),
+        ),
       [],
     ),
     painted = useRef(false);
@@ -538,31 +505,13 @@ function Monsters({
           y: -100,
           z: p.z,
         });
-      const palette = ["#7e9b75", "#e2d4ad", "#7ba7a1"][i % 3];
-      const thin = i % 3 === 1;
-      const specs = [
-        { y: 0.7, s: [thin ? 0.35 : 0.6, 0.7, 0.4], c: palette, x: 0, z: 0 },
-        { y: 1.25, s: [0.61, 0.53, 0.52], c: palette, x: 0, z: 0 },
-        { y: 1.3, s: [0.1, 0.12, 0.04], c: "#304946", x: -0.14, z: 0.28 },
-        { y: 1.3, s: [0.1, 0.12, 0.04], c: "#304946", x: 0.14, z: 0.28 },
-        { y: 0.2, s: [0.2, 0.4, 0.25], c: palette, x: -0.2, z: 0 },
-        { y: 0.2, s: [0.2, 0.4, 0.25], c: palette, x: 0.2, z: 0 },
-        { y: 0.8, s: [0.17, 0.5, 0.2], c: palette, x: -0.44, z: -0.12 },
-        { y: 0.8, s: [0.17, 0.5, 0.2], c: palette, x: 0.44, z: -0.12 },
-        {
-          y: thin ? 0.7 : 1.1,
-          s: [thin ? 0.38 : 0.2, 0.05, 0.04],
-          c: thin ? "#a79b81" : "#304946",
-          x: 0,
-          z: thin ? 0.22 : 0.28,
-        },
-      ];
+      const specs = monsterModels[i % 3];
       specs.forEach((s, j) => {
         const angle = target ? Math.atan2(target.x - p.x, target.z - p.z) : 0;
         temp.position.set(
-          p.x + s.x * Math.cos(angle) + s.z * Math.sin(angle),
-          s.y + Math.sin(clock.elapsedTime * 3 + i) * 0.025,
-          p.z + s.z * Math.cos(angle) - s.x * Math.sin(angle),
+          p.x + s.p[0] * Math.cos(angle) + s.p[2] * Math.sin(angle),
+          s.p[1] + Math.sin(clock.elapsedTime * 3 + i) * 0.025,
+          p.z + s.p[2] * Math.cos(angle) - s.p[0] * Math.sin(angle),
         );
         temp.scale.set(...(s.s as Vec3));
         if (!active) temp.scale.set(0, 0, 0);
@@ -655,6 +604,7 @@ export function Scene({
   const { camera, gl } = useThree(),
     { rapier, world } = useRapier();
   const [walk, setWalk] = useState(0);
+  const [swing, setSwing] = useState(0);
   const lastStatus = useRef(0),
     lastBump = useRef(-10);
   const spawn = useMemo(() => checkpoints[save.checkpoint], []);
@@ -675,7 +625,7 @@ export function Scene({
     props.current.onBump();
   }
   useEffect(() => {
-    controller.current = { respawn };
+    controller.current = { respawn, swing: () => setSwing((n) => n + 1) };
     return () => {
       controller.current = null;
     };
@@ -824,6 +774,15 @@ export function Scene({
           best = d;
         }
       }
+      for (const ore of oreDeposits) {
+        if (
+          !s.save.mined.includes(ore.id) &&
+          distance(p, ore.position) < best
+        ) {
+          near = ore.id;
+          best = distance(p, ore.position);
+        }
+      }
       if (distance(p, chestPosition) < 2.6) near = "chest";
       const nearbyAnimals = animals
         .filter(
@@ -859,27 +818,28 @@ export function Scene({
   return (
     <>
       <color attach="background" args={["#65c7f7"]} />
-      <fog attach="fog" args={["#a8e7cd", 26, 62]} />
+      <fog attach="fog" args={["#b6e1cc", 42, 104]} />
       <Sky
         distance={450000}
         sunPosition={[70, 80, 30]}
         inclination={0.5}
         azimuth={0.2}
       />
-      <ambientLight intensity={1.3} />
-      <hemisphereLight args={["#fff6dd", "#6d9762", 1.5]} />
+      <ambientLight intensity={0.65} />
+      <hemisphereLight args={["#fff6dd", "#6d9762", 0.8]} />
       <directionalLight
         position={[-12, 25, 8]}
-        intensity={2.1}
+        intensity={1.8}
         castShadow={!save.lowQuality}
         shadow-mapSize={[1024, 1024]}
-        shadow-camera-left={-25}
-        shadow-camera-right={25}
-        shadow-camera-top={28}
-        shadow-camera-bottom={-28}
+        shadow-camera-left={-48}
+        shadow-camera-right={48}
+        shadow-camera-top={48}
+        shadow-camera-bottom={-48}
         shadow-normalBias={0.04}
       />
       <Landscape />
+      <ForestExpansion />
       <Box p={[3.8, 0.03, 22]} s={[1.4, 0.06, 1]} c="#ffdb63" />
       {stumps.map((p, i) => (
         <FixedBox
@@ -928,13 +888,37 @@ export function Scene({
       >
         <CapsuleCollider args={[0.35, 0.28]} />
         <group ref={visual}>
-          <Avatar appearance={save.appearance} walking={walk} />
+          <Avatar
+            appearance={save.appearance}
+            walking={walk}
+            pickaxe={save.equipment.pickaxe}
+            backpack={save.equipment.backpack}
+            swing={swing}
+            paused={paused}
+          />
         </group>
       </RigidBody>
       {collectibles
         .filter((item) => !save[item.kind].includes(item.id))
         .map((item) => (
           <Pickup key={item.id} {...item} onClick={() => onInteract(item.id)} />
+        ))}
+      {oreDeposits
+        .filter((ore) => !save.mined.includes(ore.id))
+        .map((ore) => (
+          <group
+            key={ore.id}
+            position={ore.position}
+            onClick={(e) => {
+              e.stopPropagation();
+              onInteract(ore.id);
+            }}
+          >
+            <Box p={[0, 0, 0]} s={[1, 0.8, 0.9]} c="#7f8e88" />
+            <Box p={[-0.18, 0.36, -0.12]} s={[0.3, 0.48, 0.28]} c="#bcf3e6" />
+            <Box p={[0.22, 0.25, 0.18]} s={[0.26, 0.38, 0.29]} c="#e9fff0" />
+            <Box p={[0.1, -0.06, -0.46]} s={[0.3, 0.18, 0.035]} c="#8fd9c8" />
+          </group>
         ))}
       <Chest opened={save.completed} onClick={() => onInteract("chest")} />
       {animals.map((animal) => (

@@ -1,3 +1,5 @@
+import Inventory, { ItemIcon } from "./Inventory";
+import { WORLD, oreDeposits, landmarks, mapPoint } from "./game/expansion";
 import {
   Component,
   Suspense,
@@ -122,46 +124,82 @@ function Joystick() {
   );
 }
 function Map({ status, save }: { status: Status; save: Save }) {
+  const pt = (x: number, z: number) => mapPoint(x, z);
   return (
     <div className="map">
       <span className="eyebrow">FOREST FIELD NOTES</span>
       <svg
         viewBox="0 0 140 150"
         role="img"
-        aria-label="森林地图：沿小路过桥，向北寻找宝箱"
+        aria-label="扩展森林地图：两座桥、白桦林、花甸和河畔小屋"
       >
         <rect width="140" height="150" rx="14" fill="#dce4c3" />
-        <path d="M70 137V15" stroke="#f8edc3" strokeWidth="10" />
-        <path d="M0 65L140 65" stroke="#73b7bf" strokeWidth="16" />
-        <path d="M70 55V75" stroke="#bd925a" strokeWidth="9" />
-        {Array.from({ length: 14 }, (_, i) => (
+        <path d={`M8 ${pt(0, -4)[1]}H132`} stroke="#6cbccf" strokeWidth="10" />
+        {[0, 24].map((x) => (
           <path
-            key={i}
-            d={`M${i % 2 ? 111 : 20} ${10 + i * 9}l-5 9h10z`}
-            fill="#7aa078"
+            key={x}
+            d={`M${pt(x, 28).join(" ")}L${pt(x, -31).join(" ")}`}
+            stroke="#f8edc3"
+            strokeWidth="3"
           />
+        ))}
+        {[0, 24].map((x) => (
+          <path
+            key={x}
+            d={`M${pt(x, -8).join(" ")}L${pt(x, 0).join(" ")}`}
+            stroke="#a37843"
+            strokeWidth="4"
+          />
+        ))}
+        {landmarks.map((l) => (
+          <g key={l.name}>
+            <circle
+              cx={pt(l.x, l.z)[0]}
+              cy={pt(l.x, l.z)[1]}
+              r="3"
+              fill="#628c51"
+            />
+            <title>{l.name}</title>
+          </g>
         ))}
         {collectibles
           .filter((c) => !save[c.kind].includes(c.id))
           .map((c) => (
             <circle
               key={c.id}
-              cx={70 + c.position[0] * 2.7}
-              cy={(c.position[2] + 28) * 2.7}
-              r="3"
+              cx={pt(c.position[0], c.position[2])[0]}
+              cy={pt(c.position[0], c.position[2])[1]}
+              r="2.2"
               fill={c.kind === "wood" ? "#956641" : "#e8a82f"}
             />
           ))}
-        <rect x="65" y="15" width="10" height="8" rx="1" fill="#aa7847" />
+        {oreDeposits
+          .filter((o) => !save.mined.includes(o.id))
+          .map((o) => (
+            <circle
+              key={o.id}
+              cx={pt(o.position[0], o.position[2])[0]}
+              cy={pt(o.position[0], o.position[2])[1]}
+              r="2.5"
+              fill="#19968c"
+            />
+          ))}
+        <rect
+          x={pt(0, -21)[0] - 3}
+          y={pt(0, -21)[1] - 3}
+          width="6"
+          height="6"
+          fill="#aa7847"
+        />
         {taskMarkers
           .filter((m) => m.task === save.tasks.active)
           .map((m) => (
             <rect
               key={m.id}
-              x={67 + m.position[0] * 2.7}
-              y={(m.position[2] + 28) * 2.7 - 3}
-              width="6"
-              height="6"
+              x={pt(m.position[0], m.position[2])[0] - 2}
+              y={pt(m.position[0], m.position[2])[1] - 2}
+              width="4"
+              height="4"
               fill={
                 (save.tasks.steps[m.task] ?? []).includes(m.id)
                   ? "#e8a82f"
@@ -170,15 +208,15 @@ function Map({ status, save }: { status: Status; save: Save }) {
             />
           ))}
         <circle
-          cx={70 + status.x * 2.7}
-          cy={(status.z + 28) * 2.7}
-          r="4.5"
+          cx={pt(status.x, status.z)[0]}
+          cy={pt(status.x, status.z)[1]}
+          r="3.5"
           fill="#fff"
           stroke="#3a6d61"
-          strokeWidth="2"
+          strokeWidth="1.5"
         />
       </svg>
-      <small>N ↑ &nbsp; 金色旗帜是安全点</small>
+      <small>N ↑ · 青色矿点可用镐采集</small>
     </div>
   );
 }
@@ -338,6 +376,19 @@ export default function App() {
       playTone("animal", s.muted);
       return;
     }
+    const ore = oreDeposits.find((o) => o.id === id);
+    if (ore) {
+      if (distance(p, ore.position) > 2.65 || s.mined.includes(id)) return;
+      if (!s.equipment.pickaxe) {
+        notify("先打开背包装备工具镐，再来采矿。");
+        return;
+      }
+      controller.current?.swing();
+      dispatch({ type: "mine", id });
+      playTone("collect", s.muted);
+      notify("采到林间石英 ×1！已存入背包。");
+      return;
+    }
     const item = collectibles.find((c) => c.id === id);
     if (!item) {
       notify("靠近发光琥珀、木头或宝箱，再按互动。");
@@ -348,10 +399,39 @@ export default function App() {
       return;
     }
     if (s[item.kind].includes(item.id)) return;
+    if (item.kind === "amber") {
+      if (!s.equipment.pickaxe) {
+        notify("先打开背包装备工具镐，再来采集琥珀。");
+        return;
+      }
+      controller.current?.swing();
+    }
     dispatch({ type: "collect", kind: item.kind, id: item.id });
     playTone("collect", s.muted);
     notify(item.kind === "wood" ? "收集到一块木头！" : "收集到一块森林琥珀！");
   }
+  const lastSwing = useRef(0);
+  function usePickaxe() {
+    const current = live.current;
+    if (!current.started || current.panel !== "none" || document.hidden) return;
+    if (!current.save.equipment.pickaxe) {
+      notify("先打开背包装备工具镐。");
+      return;
+    }
+    if (performance.now() - lastSwing.current < 450) return;
+    lastSwing.current = performance.now();
+    if (
+      current.status.near.startsWith("amber") ||
+      current.status.near.startsWith("quartz")
+    )
+      interact(current.status.near);
+    else {
+      controller.current?.swing();
+      notify("靠近金色琥珀或青白色石英矿，再挥镐。");
+    }
+  }
+  const toolRef = useRef(usePickaxe);
+  toolRef.current = usePickaxe;
   const interactRef = useRef(interact);
   interactRef.current = interact;
   useEffect(() => {
@@ -382,12 +462,16 @@ export default function App() {
           "ArrowRight",
           "Space",
           "KeyE",
+          "KeyF",
+          "KeyB",
         ].includes(e.code)
       ) {
         e.preventDefault();
         input.keys.add(e.code);
         if (e.code === "Space" && !e.repeat) input.jump = true;
         if (e.code === "KeyE" && !e.repeat) interactRef.current();
+        if (e.code === "KeyF" && !e.repeat) toolRef.current();
+        if (e.code === "KeyB" && !e.repeat) setPanel("bag");
       }
     };
     const up = (e: KeyboardEvent) => input.keys.delete(e.code);
@@ -452,19 +536,21 @@ export default function App() {
   }
   const q = save.questionSet.questions[save.solved.length];
   const selectedTask = tasks.find((t) => t.id === save.tasks.active);
-  const nearLabel = status.near.startsWith("marker:")
-    ? "发现这里 · 互动"
-    : status.near === "chest"
-      ? save.completed
-        ? "查看宝箱"
-        : "打开宝箱"
-      : status.near.startsWith("wood")
-        ? "收集木头"
-        : status.near.startsWith("amber")
-          ? "收集琥珀"
-          : status.near.startsWith("animal-")
-            ? "和小动物交流"
-            : "靠近物品互动";
+  const nearLabel = status.near.startsWith("quartz")
+    ? "挥镐采集石英"
+    : status.near.startsWith("marker:")
+      ? "发现这里 · 互动"
+      : status.near === "chest"
+        ? save.completed
+          ? "查看宝箱"
+          : "打开宝箱"
+        : status.near.startsWith("wood")
+          ? "收集木头"
+          : status.near.startsWith("amber")
+            ? "挥镐采集琥珀"
+            : status.near.startsWith("animal-")
+              ? "和小动物交流"
+              : "靠近物品互动";
   const all = readyForChest(save);
   const questionProgress = q
     ? (save.questionStats[q.id] ?? emptyProgress())
@@ -479,6 +565,9 @@ export default function App() {
         data-z={status.z.toFixed(2)}
         data-grounded={status.grounded}
         data-drawcalls={status.draws}
+        data-map-width={WORLD.maxX - WORLD.minX}
+        data-pickaxe={save.equipment.pickaxe}
+        data-backpack={save.equipment.backpack}
       >
         <GameBoundary key={attempt} onError={fail}>
           <Suspense fallback={null}>
@@ -666,11 +755,21 @@ export default function App() {
           <div className="location-label">
             <span>THE AMBER WOODS</span>
             <strong>
-              {status.z > -1
-                ? "向阳林地"
-                : status.z > -8
-                  ? "溪流木桥"
-                  : "琥珀秘林"}
+              {status.x > 20
+                ? status.z < -8
+                  ? "河畔小屋"
+                  : status.z > 18
+                    ? "晴光花甸"
+                    : "东岸石径"
+                : status.x < -20
+                  ? status.z < -20
+                    ? "琥珀山径"
+                    : "白桦林地"
+                  : status.z > -1
+                    ? "向阳林地"
+                    : status.z > -8
+                      ? "溪流木桥"
+                      : "琥珀秘林"}
             </strong>
           </div>
           <div className="desktop-controls">
@@ -685,6 +784,22 @@ export default function App() {
             </span>
             <span>拖动鼠标转动视角</span>
           </div>
+          {!paused && (
+            <div className="tool-shortcut">
+              <button aria-label="挥动工具镐" onClick={usePickaxe}>
+                <ItemIcon kind="pickaxe" />
+                <span>
+                  <kbd>F</kbd> 挥镐
+                </span>
+              </button>
+              <button aria-label="快捷背包" onClick={() => setPanel("bag")}>
+                <ItemIcon kind="backpack" />
+                <span>
+                  <kbd>B</kbd> 背包
+                </span>
+              </button>
+            </div>
+          )}
           <div className="interact-prompt">
             <button onClick={() => interact()} disabled={!status.near}>
               <kbd>E</kbd> {nearLabel}
@@ -708,7 +823,17 @@ export default function App() {
                   aria-label="互动"
                   onClick={() => interact()}
                 >
-                  ✦<small>{status.near ? nearLabel : "互动"}</small>
+                  ✦
+                  <small>
+                    {status.near.startsWith("animal-")
+                      ? "交流"
+                      : status.near.startsWith("amber") ||
+                          status.near.startsWith("quartz")
+                        ? "采矿"
+                        : status.near === "chest"
+                          ? "宝箱"
+                          : "互动"}
+                  </small>
                 </button>
               </div>
               <span className="touch-look">滑动场景转动视角</span>
@@ -797,7 +922,7 @@ export default function App() {
       {panel !== "none" && !error && (
         <div className="overlay">
           <section
-            className={`panel ${panel === "avatar" ? "avatar-panel" : ""} ${panel === "tasks" ? "tasks-panel" : ""} ${panel === "quiz" ? "quiz-panel" : ""} ${panel === "parent" ? "parent-panel" : ""}`}
+            className={`panel ${panel === "bag" ? "bag-panel" : ""} ${panel === "avatar" ? "avatar-panel" : ""} ${panel === "tasks" ? "tasks-panel" : ""} ${panel === "quiz" ? "quiz-panel" : ""} ${panel === "parent" ? "parent-panel" : ""}`}
             role="dialog"
             aria-modal="true"
             aria-label={
@@ -951,7 +1076,10 @@ export default function App() {
                 <h2>你好，小小探险家。</h2>
                 <p>选一个属于你的样子。角色外观会自动保存。</p>
                 <Suspense fallback={<p>正在准备 3D 换装镜…</p>}>
-                  <AvatarPreview appearance={save.appearance} />
+                  <AvatarPreview
+                    appearance={save.appearance}
+                    equipment={save.equipment}
+                  />
                 </Suspense>
                 <fieldset>
                   <legend>肤色</legend>
@@ -1070,25 +1198,7 @@ export default function App() {
                     <span>完成可选任务，收集森林徽章。</span>
                   )}
                 </div>
-                <div className="inventory">
-                  <div>
-                    <span>▰</span>
-                    <strong>{save.wood.length}</strong>
-                    <small>收集的木头 / 3</small>
-                  </div>
-                  <div>
-                    <span>◆</span>
-                    <strong>{save.amber.length}</strong>
-                    <small>森林琥珀 / 5</small>
-                  </div>
-                  <div>
-                    <span>▦</span>
-                    <strong data-testid="reward-count">
-                      {save.woodBlocks}
-                    </strong>
-                    <small>奖励木头方块</small>
-                  </div>
-                </div>
+                <Inventory save={save} dispatch={dispatch} />
                 <p>
                   {save.completed
                     ? "第一关已通关。奖励只能领取一次，刷新后仍保留。"

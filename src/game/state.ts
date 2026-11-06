@@ -1,3 +1,4 @@
+import { oreDeposits } from "./expansion";
 import level from "../data/level1.json";
 import {
   generateQuestions,
@@ -71,6 +72,8 @@ export const emptyProgress = (): QuestionProgress => ({
 export const REWARD_ID = level.reward.id;
 export type Save = {
   version: 2;
+  equipment: { pickaxe: boolean; backpack: boolean };
+  mined: string[];
   questionSet: QuestionSet;
   history: QuestionSet[];
   archivedTotals: { attempts: number; correct: number; hints: number };
@@ -106,6 +109,8 @@ export const shirts = [
 const legacyShirts = ["#e49c49", "#528e95", "#b57eae", "#74945a", "#607cc2"];
 export const initialSave = (seed = randomSeed()): Save => ({
   version: 2,
+  equipment: { pickaxe: true, backpack: true },
+  mined: [],
   questionSet: generateQuestions(seed),
   history: [],
   archivedTotals: { attempts: 0, correct: 0, hints: 0 },
@@ -129,6 +134,8 @@ export const initialSave = (seed = randomSeed()): Save => ({
 export const readyForChest = (s: Save) =>
   s.wood.length === 3 && s.amber.length === 5;
 export type Action =
+  | { type: "equip"; item: "pickaxe" | "backpack" }
+  | { type: "mine"; id: string }
   | { type: "appearance"; value: Appearance }
   | { type: "collect"; kind: "wood" | "amber"; id: string }
   | { type: "answer"; id: string; answer: number }
@@ -144,6 +151,17 @@ export type Action =
   | { type: "task-step"; task: string; step: string }
   | { type: "parkour-reset" };
 export function transition(s: Save, a: Action): Save {
+  if (a.type === "equip")
+    return {
+      ...s,
+      equipment: { ...s.equipment, [a.item]: !s.equipment[a.item] },
+    };
+  if (a.type === "mine")
+    return !s.equipment.pickaxe ||
+      s.mined.includes(a.id) ||
+      !oreDeposits.some((o) => o.id === a.id)
+      ? s
+      : { ...s, mined: [...s.mined, a.id] };
   if (a.type === "mute") return { ...s, muted: !s.muted };
   if (a.type === "difficulty")
     return Object.hasOwn(difficulties, a.value)
@@ -217,6 +235,7 @@ export function transition(s: Save, a: Action): Save {
   }
   if (a.type === "appearance") return { ...s, appearance: a.value };
   if (a.type === "collect") {
+    if (a.kind === "amber" && !s.equipment.pickaxe) return s;
     const max = a.kind === "wood" ? 3 : 5;
     if (
       !Array.from({ length: max }, (_, i) => `${a.kind}-${i}`).includes(a.id) ||
@@ -364,6 +383,13 @@ export function parseSave(raw: string | null): Save {
     };
     return {
       ...empty,
+      equipment: {
+        pickaxe: x.equipment?.pickaxe !== false,
+        backpack: x.equipment?.backpack !== false,
+      },
+      mined: oreDeposits
+        .filter((o) => Array.isArray(x.mined) && x.mined.includes(o.id))
+        .map((o) => o.id),
       questionSet,
       history,
       archivedTotals: {

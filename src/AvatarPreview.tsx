@@ -15,8 +15,10 @@ function Ready({ done }: { done: () => void }) {
 }
 export default function AvatarPreview({
   appearance,
+  equipment = { pickaxe: true, backpack: true },
 }: {
   appearance: Appearance;
+  equipment?: { pickaxe: boolean; backpack: boolean };
 }) {
   const [ready, setReady] = useState(false);
   return (
@@ -35,7 +37,7 @@ export default function AvatarPreview({
         <ambientLight intensity={2} />
         <directionalLight position={[2, 5, -4]} intensity={2} />
         <group rotation={[0, -0.2, 0]}>
-          <Avatar appearance={appearance} />
+          <Avatar appearance={appearance} {...equipment} />
         </group>
         <Box p={[0, -0.73, 0]} s={[1.6, 0.12, 1.4]} c="#66aa45" />
         <OrbitControls

@@ -21,10 +21,24 @@ export const collectibles: {
   { id: "amber-3", kind: "amber", position: [4, 0.8, -13] },
   { id: "amber-4", kind: "amber", position: [-3, 0.8, -17] },
 ];
-export const trees: Vec3[] = Array.from({ length: 64 }, (_, i) => {
+const oldTrees: Vec3[] = Array.from({ length: 64 }, (_, i) => {
   const side = i % 2 ? 1 : -1;
   return [side * (6 + ((i * 7) % 12)), 0, 18 - ((i * 11) % 45)] as Vec3;
 });
+export const trees: Vec3[] = [
+  ...oldTrees,
+  ...Array.from({ length: 110 }, (_, i) => {
+    const side = i % 2 ? 1 : -1;
+    return [side * (21 + ((i * 7) % 17)), 0, 33 - ((i * 13) % 78)] as Vec3;
+  }).filter(
+    ([x, , z]) =>
+      Math.abs(z - 26) > 2.3 &&
+      Math.abs(x - 24) > 2.8 &&
+      !(x > 22 && x < 32 && z > -22 && z < -11) &&
+      !(z > -8 && z < 0) &&
+      !(x < -26 && z < -33),
+  ),
+];
 export const rocks: Vec3[] = [
   [-3, 0.4, 5],
   [3, 0.45, 2],

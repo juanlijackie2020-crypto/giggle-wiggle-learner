@@ -44,7 +44,7 @@ export default function GameCanvas({
           ? 1
           : 1.5,
       ]}
-      camera={{ fov: 52, near: 0.1, far: 90, position: [0, 8, 23] }}
+      camera={{ fov: 52, near: 0.1, far: 145, position: [0, 8, 23] }}
       gl={{
         antialias: false,
         powerPreference: "high-performance",
