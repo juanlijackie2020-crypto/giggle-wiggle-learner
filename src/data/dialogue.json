@@ -1,0 +1,137 @@
+[
+  {
+    "id": "hero-hello",
+    "speaker": "主角",
+    "text": "你好，森林里的小伙伴！",
+    "path": "audio/forest/hero-hello.mp3",
+    "language": "zh-CN",
+    "duration": 5.26,
+    "source": "Original script; offline eSpeak NG synthesis"
+  },
+  {
+    "id": "hero-clue",
+    "speaker": "主角",
+    "text": "你能给我一个探险的提示吗？",
+    "path": "audio/forest/hero-clue.mp3",
+    "language": "zh-CN",
+    "duration": 5.38,
+    "source": "Original script; offline eSpeak NG synthesis"
+  },
+  {
+    "id": "hero-thanks",
+    "speaker": "主角",
+    "text": "谢谢你！我们一起守护森林！",
+    "path": "audio/forest/hero-thanks.mp3",
+    "language": "zh-CN",
+    "duration": 5.3,
+    "source": "Original script; offline eSpeak NG synthesis"
+  },
+  {
+    "id": "animal-0-hello",
+    "speaker": "小兔子",
+    "text": "你好！我是小兔子，很高兴认识你！",
+    "path": "audio/forest/animal-0-hello.mp3",
+    "language": "zh-CN",
+    "duration": 6.79,
+    "source": "Original script; offline eSpeak NG synthesis"
+  },
+  {
+    "id": "animal-0-clue",
+    "speaker": "小兔子",
+    "text": "我在小路旁发现了木头，靠近棕色木块再按互动。",
+    "path": "audio/forest/animal-0-clue.mp3",
+    "language": "zh-CN",
+    "duration": 9.82,
+    "source": "Original script; offline eSpeak NG synthesis"
+  },
+  {
+    "id": "animal-1-hello",
+    "speaker": "长尾鹿",
+    "text": "你好！我是长尾鹿，很高兴认识你！",
+    "path": "audio/forest/animal-1-hello.mp3",
+    "language": "zh-CN",
+    "duration": 6.46,
+    "source": "Original script; offline eSpeak NG synthesis"
+  },
+  {
+    "id": "animal-1-clue",
+    "speaker": "长尾鹿",
+    "text": "金色旗帜是安全点。先走到旗帜边，再去探索。",
+    "path": "audio/forest/animal-1-clue.mp3",
+    "language": "zh-CN",
+    "duration": 9.58,
+    "source": "Original script; offline eSpeak NG synthesis"
+  },
+  {
+    "id": "animal-2-hello",
+    "speaker": "松鼠",
+    "text": "你好！我是松鼠，很高兴认识你！",
+    "path": "audio/forest/animal-2-hello.mp3",
+    "language": "zh-CN",
+    "duration": 6.26,
+    "source": "Original script; offline eSpeak NG synthesis"
+  },
+  {
+    "id": "animal-2-clue",
+    "speaker": "松鼠",
+    "text": "琥珀在阳光下会发金光，桥的两边都有哦。",
+    "path": "audio/forest/animal-2-clue.mp3",
+    "language": "zh-CN",
+    "duration": 9.46,
+    "source": "Original script; offline eSpeak NG synthesis"
+  },
+  {
+    "id": "animal-3-hello",
+    "speaker": "狐狸",
+    "text": "你好！我是狐狸，很高兴认识你！",
+    "path": "audio/forest/animal-3-hello.mp3",
+    "language": "zh-CN",
+    "duration": 6.22,
+    "source": "Original script; offline eSpeak NG synthesis"
+  },
+  {
+    "id": "animal-3-clue",
+    "speaker": "狐狸",
+    "text": "碰到怪物也不要紧，收集过的物品不会丢失。",
+    "path": "audio/forest/animal-3-clue.mp3",
+    "language": "zh-CN",
+    "duration": 8.11,
+    "source": "Original script; offline eSpeak NG synthesis"
+  },
+  {
+    "id": "animal-4-hello",
+    "speaker": "小鸟",
+    "text": "你好！我是小鸟，很高兴认识你！",
+    "path": "audio/forest/animal-4-hello.mp3",
+    "language": "zh-CN",
+    "duration": 6.48,
+    "source": "Original script; offline eSpeak NG synthesis"
+  },
+  {
+    "id": "animal-4-clue",
+    "speaker": "小鸟",
+    "text": "从木桥过河，沿着小路向北走，灌木后藏着宝箱。",
+    "path": "audio/forest/animal-4-clue.mp3",
+    "language": "zh-CN",
+    "duration": 10.97,
+    "source": "Original script; offline eSpeak NG synthesis"
+  },
+  {
+    "id": "animal-5-hello",
+    "speaker": "刺猬",
+    "text": "你好！我是刺猬，很高兴认识你！",
+    "path": "audio/forest/animal-5-hello.mp3",
+    "language": "zh-CN",
+    "duration": 6.02,
+    "source": "Original script; offline eSpeak NG synthesis"
+  },
+  {
+    "id": "animal-5-clue",
+    "speaker": "刺猬",
+    "text": "等怪物走远再出发，也可以从另一边绕过去。",
+    "path": "audio/forest/animal-5-clue.mp3",
+    "language": "zh-CN",
+    "duration": 8.95,
+    "source": "Original script; offline eSpeak NG synthesis"
+  }
+]

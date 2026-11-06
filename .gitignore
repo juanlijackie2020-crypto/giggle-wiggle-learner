@@ -2,3 +2,6 @@ node_modules/
 dist/
 .playwright/
 test-results/
+
+tsconfig.tsbuildinfo
+playwright-report/

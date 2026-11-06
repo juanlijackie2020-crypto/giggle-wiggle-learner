@@ -1,0 +1,49 @@
+{
+  "id": "forest-amber",
+  "title": "森林琥珀保卫战",
+  "reward": {
+    "woodBlocks": 10,
+    "id": "forest-amber:wood-blocks:v1",
+    "itemId": "wood_block",
+    "quantity": 10
+  },
+  "questions": [
+    {
+      "id": "add-3-4",
+      "text": "3 + 4 = ?",
+      "options": [6, 7, 8, 5],
+      "answer": 7,
+      "hint": "先放 3 颗琥珀，再放 4 颗，一起数一数。",
+      "dots": [3, 4],
+      "operation": "+",
+      "visualHint": "把下面的琥珀图分成两组，按题目加在一起或拿走，再数剩下的数量。"
+    },
+    {
+      "id": "subtract-9-5",
+      "text": "9 − 5 = ?",
+      "options": [3, 5, 4, 6],
+      "answer": 4,
+      "hint": "9 颗琥珀拿走 5 颗，还剩几颗？",
+      "dots": [9, 5],
+      "operation": "−",
+      "visualHint": "把下面的琥珀图分成两组，按题目加在一起或拿走，再数剩下的数量。"
+    },
+    {
+      "id": "add-6-2",
+      "text": "6 + 2 = ?",
+      "options": [9, 6, 7, 8],
+      "answer": 8,
+      "hint": "先数出 6 颗，再增加 2 颗，一起试着数一数。",
+      "dots": [6, 2],
+      "operation": "+",
+      "visualHint": "把下面的琥珀图分成两组，按题目加在一起或拿走，再数剩下的数量。"
+    }
+  ],
+  "mobs": {
+    "maxActive": 24,
+    "zoneCount": 2,
+    "chaseRadius": 4.6,
+    "leashRadius": 5.5,
+    "speed": 0.95
+  }
+}
