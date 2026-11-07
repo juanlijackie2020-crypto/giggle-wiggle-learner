@@ -2,7 +2,11 @@
 
 **森林琥珀保卫战（Forest Amber Defense）**：真正的第三人称 WebGL 3D 森林冒险 MVP，只实现第一关，没有其余五关。原创几何体 Voxel 美术，无后端、账号或付费 API。
 
-> 产品基线：[PRD V3.2](docs/PRD.md)。本轮扩展第一关地图，细化人物、六类动物及绿色怪物，新增可装备工具镐和物品格背包。[V3.2 验证与 UAT](docs/V32_IMPLEMENTATION.md) · [上一轮 V3.1 记录](docs/V31_IMPLEMENTATION.md) · [试玩部署说明](docs/V31_UAT.md)。
+> 第一关实现基线：[PRD V3.2](docs/PRD_V3.2.md)。本轮扩展第一关地图，细化人物、六类动物及绿色怪物，新增可装备工具镐和物品格背包。[V3.2 验证与 UAT](docs/V32_IMPLEMENTATION.md) · [上一轮 V3.1 记录](docs/V31_IMPLEMENTATION.md) · [试玩部署说明](docs/V31_UAT.md)。
+
+## 后续关卡设计审阅
+
+第一关用户 UAT 已通过。第 2–6 关目前**只完善设计，尚未开工**：[给家长和骞骞的简短提案](docs/V33_FAMILY_REVIEW.md) · [完整设计需求 V3.3](docs/LEVELS_2_6_PRD_V3.3.md)。第一关已实现规格归档在 [PRD V3.2](docs/PRD_V3.2.md)，当前 [总 PRD](docs/PRD.md) 包含后五关待审提案。
 
 ## 安装、启动与构建
 
