@@ -1,3 +1,10 @@
+import {
+  initialDesert,
+  parseDesert,
+  desertTransition,
+  type DesertProgress,
+  type DesertAction,
+} from "../desert/state";
 import { oreDeposits } from "./expansion";
 import level from "../data/level1.json";
 import {
@@ -71,7 +78,10 @@ export const emptyProgress = (): QuestionProgress => ({
 });
 export const REWARD_ID = level.reward.id;
 export type Save = {
-  version: 2;
+  version: 3;
+  activeLevel: 1 | 2;
+  desertAccess: boolean;
+  desert: DesertProgress;
   equipment: { pickaxe: boolean; backpack: boolean };
   mined: string[];
   questionSet: QuestionSet;
@@ -108,7 +118,10 @@ export const shirts = [
 ];
 const legacyShirts = ["#e49c49", "#528e95", "#b57eae", "#74945a", "#607cc2"];
 export const initialSave = (seed = randomSeed()): Save => ({
-  version: 2,
+  version: 3,
+  activeLevel: 1,
+  desertAccess: false,
+  desert: initialDesert(seed),
   equipment: { pickaxe: true, backpack: true },
   mined: [],
   questionSet: generateQuestions(seed),
@@ -134,6 +147,8 @@ export const initialSave = (seed = randomSeed()): Save => ({
 export const readyForChest = (s: Save) =>
   s.wood.length === 3 && s.amber.length === 5;
 export type Action =
+  | { type: "level"; level: 1 | 2; parentUAT?: boolean }
+  | { type: "desert"; action: DesertAction }
   | { type: "equip"; item: "pickaxe" | "backpack" }
   | { type: "mine"; id: string }
   | { type: "appearance"; value: Appearance }
@@ -151,6 +166,19 @@ export type Action =
   | { type: "task-step"; task: string; step: string }
   | { type: "parkour-reset" };
 export function transition(s: Save, a: Action): Save {
+  if (a.type === "level")
+    return a.level === 1 || s.everCompleted || s.desertAccess || a.parentUAT
+      ? {
+          ...s,
+          activeLevel: a.level,
+          desertAccess: s.desertAccess || a.parentUAT === true,
+        }
+      : s;
+  if (a.type === "desert")
+    return {
+      ...s,
+      desert: desertTransition(s.desert, a.action, s.equipment.pickaxe),
+    };
   if (a.type === "equip")
     return {
       ...s,
@@ -303,7 +331,7 @@ export function parseSave(raw: string | null): Save {
   if (!raw) return empty;
   try {
     const x = JSON.parse(raw);
-    if (!x || ![1, 2].includes(x.version)) return empty;
+    if (!x || ![1, 2, 3].includes(x.version)) return empty;
     const questionSet =
       x.version === 1
         ? legacySet()
@@ -311,7 +339,7 @@ export function parseSave(raw: string | null): Save {
           ? x.questionSet
           : empty.questionSet;
     const history: QuestionSet[] = Array.isArray(x.history)
-      ? x.history.filter(validQuestionSet).slice(-100)
+      ? x.history.filter((q: unknown) => validQuestionSet(q)).slice(-100)
       : [];
     const clean = (kind: "wood" | "amber", count: number): string[] =>
       Array.isArray(x[kind])
@@ -383,6 +411,10 @@ export function parseSave(raw: string | null): Save {
     };
     return {
       ...empty,
+      desert: parseDesert(x.desert),
+      desertAccess: x.desertAccess === true,
+      activeLevel:
+        x.activeLevel === 2 && (claimed || x.desertAccess === true) ? 2 : 1,
       equipment: {
         pickaxe: x.equipment?.pickaxe !== false,
         backpack: x.equipment?.backpack !== false,
@@ -451,4 +483,25 @@ export function parseSave(raw: string | null): Save {
   } catch {
     return empty;
   }
+}
+
+// Permanent entitlements are sets, never additive counters. Merge before every write.
+export function mergePermanent(s: Save, other: Save): Save {
+  const union = (a: string[], b: string[]) => [...new Set([...a, ...b])];
+  const claims = union(s.rewardClaims, other.rewardClaims);
+  return {
+    ...s,
+    rewardClaims: claims,
+    woodBlocks: claims.includes(REWARD_ID) ? 10 : 0,
+    everCompleted: s.everCompleted || other.everCompleted,
+    desertAccess: s.desertAccess || other.desertAccess,
+    mined: union(s.mined, other.mined),
+    tasks: { ...s.tasks, badges: union(s.tasks.badges, other.tasks.badges) },
+    desert: {
+      ...s.desert,
+      claims: union(s.desert.claims, other.desert.claims),
+      mined: union(s.desert.mined, other.desert.mined),
+      badges: union(s.desert.badges, other.desert.badges),
+    },
+  };
 }

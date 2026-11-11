@@ -1,4 +1,4 @@
-name: Validate and deploy Forest Amber
+name: Validate and deploy Voxel Adventure
 on:
   push:
     branches: [main]

@@ -2,6 +2,20 @@ import rules from "../data/math.json";
 import level from "../data/level1.json";
 export type Difficulty = keyof typeof rules.difficulties;
 export const difficulties = rules.difficulties;
+export type MathRules = {
+  id?: string;
+  difficulties: Record<
+    Difficulty,
+    {
+      label: string;
+      max: number;
+      minOperand?: number;
+      requireCrossTen: boolean;
+    }
+  >;
+  hints: { "+": string; "−": string };
+  visualHint: string;
+};
 export type Question = (typeof level.questions)[number];
 export type QuestionSet = {
   setId: string;
@@ -24,6 +38,7 @@ export function generateQuestions(
   difficulty: Difficulty = "standard",
   previous: string[] = [],
   runId = 0,
+  config: MathRules = rules,
 ): QuestionSet {
   let n = seed >>> 0;
   const random = () => {
@@ -40,11 +55,15 @@ export function generateQuestions(
     }
     return items;
   };
-  const { max, requireCrossTen } = difficulties[difficulty];
+  const {
+    max,
+    requireCrossTen,
+    minOperand = 0,
+  } = config.difficulties[difficulty];
   const pool: Question[] = [];
   for (const operation of ["+", "−"])
-    for (let a = 0; a <= max; a++)
-      for (let b = 0; b <= max; b++) {
+    for (let a = minOperand; a <= max; a++)
+      for (let b = minOperand; b <= max; b++) {
         const answer = operation === "+" ? a + b : a - b;
         if (answer < 0 || answer > max || (operation === "+" && a > b))
           continue;
@@ -55,10 +74,10 @@ export function generateQuestions(
           dots: [a, b],
           answer,
           options: [],
-          hint: rules.hints[operation as "+" | "−"]
+          hint: config.hints[operation as "+" | "−"]
             .replace("{a}", String(a))
             .replace("{b}", String(b)),
-          visualHint: rules.visualHint,
+          visualHint: config.visualHint,
         };
         if (!previous.includes(fingerprint(q))) pool.push(q);
       }
@@ -76,7 +95,7 @@ export function generateQuestions(
   );
   take((q) => q.operation === "−");
   take(() => true);
-  const setId = `math-v1-${difficulty}-${seed}-run${runId}`;
+  const setId = `${config.id ?? "math-v1"}-${difficulty}-${seed}-run${runId}`;
   return {
     setId,
     runId,
@@ -98,7 +117,10 @@ export function generateQuestions(
     }),
   };
 }
-export function validQuestionSet(value: unknown): value is QuestionSet {
+export function validQuestionSet(
+  value: unknown,
+  config: MathRules = rules,
+): value is QuestionSet {
   if (!value || typeof value !== "object") return false;
   const s = value as QuestionSet;
   if (
@@ -107,14 +129,18 @@ export function validQuestionSet(value: unknown): value is QuestionSet {
     s.runId < 0 ||
     !Number.isInteger(s.seed) ||
     s.generatorVersion !== 1 ||
-    !(s.difficulty === "legacy" || Object.hasOwn(difficulties, s.difficulty)) ||
+    !(
+      s.difficulty === "legacy" ||
+      Object.hasOwn(config.difficulties, s.difficulty)
+    ) ||
     !Array.isArray(s.questions) ||
     s.questions.length !== 3 ||
     !Array.isArray(s.previous) ||
     !s.previous.every((x) => typeof x === "string")
   )
     return false;
-  const max = s.difficulty === "legacy" ? 10 : difficulties[s.difficulty].max;
+  const max =
+    s.difficulty === "legacy" ? 10 : config.difficulties[s.difficulty].max;
   if (!s.questions.every((q) => q && typeof q === "object")) return false;
   return (
     new Set(s.questions.map((q) => q.id)).size === 3 &&

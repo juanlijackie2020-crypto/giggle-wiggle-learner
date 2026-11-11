@@ -37,6 +37,7 @@ export function Avatar({
   backpack = true,
   swing = 0,
   paused = false,
+  desertGear = false,
 }: {
   appearance: Appearance;
   walking?: number;
@@ -44,6 +45,7 @@ export function Avatar({
   backpack?: boolean;
   swing?: number;
   paused?: boolean;
+  desertGear?: boolean;
 }) {
   const arm = useRef<Group>(null),
     elapsed = useRef(1),
@@ -159,8 +161,16 @@ export function Avatar({
           v([side * 0.19, 0.8, -0.23], [0.065, 0.055, 0.03], "#efc55b"),
         );
     }
+    if (desertGear)
+      p.push(
+        v([0, 1.07, 0], [0.52, 0.14, 0.43], "#eab95e"),
+        v([0.18, 0.94, -0.22], [0.17, 0.28, 0.06], "#eab95e"),
+        v([0, 1.46, -0.28], [0.49, 0.15, 0.055], "#5c4b37"),
+        v([-0.13, 1.46, -0.315], [0.16, 0.1, 0.025], "#7de4ec"),
+        v([0.13, 1.46, -0.315], [0.16, 0.1, 0.025], "#7de4ec"),
+      );
     return p;
-  }, [skin, shirt, outfit, pants, accent, backpack]);
+  }, [skin, shirt, outfit, pants, accent, backpack, desertGear]);
   const leg = useMemo(
     () => [
       v([0, -0.21, 0], [0.23, 0.42, 0.28], pants),

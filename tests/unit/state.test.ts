@@ -67,14 +67,14 @@ describe("Forest Amber progression", () => {
   });
   it("recovers corrupted, incomplete and duplicate saves without fabricated rewards", () => {
     expect(parseSave("{broken")).toMatchObject({
-      version: 2,
+      version: 3,
       wood: [],
       amber: [],
       solved: [],
       woodBlocks: 0,
     });
     expect(parseSave("null")).toMatchObject({
-      version: 2,
+      version: 3,
       wood: [],
       amber: [],
       solved: [],

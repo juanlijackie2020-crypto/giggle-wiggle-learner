@@ -1,20 +1,15 @@
+import "./desert/desert.css";
+import { GameBoundary, Loading, Joystick } from "./GameUI";
 import Inventory, { ItemIcon } from "./Inventory";
 import { WORLD, oreDeposits, landmarks, mapPoint } from "./game/expansion";
-import {
-  Component,
-  Suspense,
-  lazy,
-  useEffect,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
+import { Suspense, lazy, useEffect, useRef, useState } from "react";
 import type { Status, Controller } from "./game/Scene";
 import {
   initialSave,
   emptyProgress,
   REWARD_ID,
   parseSave,
+  mergePermanent,
   transition,
   SAVE_KEY,
   readyForChest,
@@ -37,92 +32,8 @@ import "./style.css";
 import { LearningReport } from "./LearningReport";
 import { playTone, setAudioMuted, setEffectsVolume } from "./game/sound";
 const AvatarPreview = lazy(() => import("./AvatarPreview"));
+const DesertApp = lazy(() => import("./desert/DesertApp"));
 const GameCanvas = lazy(() => import("./game/GameCanvas"));
-class GameBoundary extends Component<
-  { children: ReactNode; onError: (message: string) => void },
-  { failed: boolean }
-> {
-  state = { failed: false };
-  static getDerivedStateFromError() {
-    return { failed: true };
-  }
-  componentDidCatch(e: Error) {
-    console.error("[Forest WebGL/Physics]", e);
-    this.props.onError(e.message);
-  }
-  render() {
-    return this.state.failed ? null : this.props.children;
-  }
-}
-function Loading({ rendererReady }: { rendererReady: boolean }) {
-  return (
-    <div className="loading-in-world" role="status">
-      <span className="spinner" />
-      {rendererReady ? "2 / 2 · 初始化物理世界" : "1 / 2 · 载入图形引擎"}
-      <progress
-        max={2}
-        value={rendererReady ? 1 : 0}
-        aria-label="世界初始化进度"
-      />
-      <small>首次启动需要准备森林与碰撞系统</small>
-    </div>
-  );
-}
-function Joystick() {
-  const [knob, setKnob] = useState({ x: 0, y: 0 });
-  const center = useRef({ x: 0, y: 0 });
-  const pointer = useRef<number | null>(null);
-  const reset = () => {
-    pointer.current = null;
-    input.x = 0;
-    input.z = 0;
-    setKnob({ x: 0, y: 0 });
-  };
-  useEffect(() => {
-    window.addEventListener("blur", reset);
-    return () => window.removeEventListener("blur", reset);
-  }, []);
-  return (
-    <div
-      className="joystick"
-      role="group"
-      aria-label="移动摇杆"
-      data-testid="joystick"
-      onPointerDown={(e) => {
-        e.preventDefault();
-        pointer.current = e.pointerId;
-        e.currentTarget.setPointerCapture(e.pointerId);
-        const r = e.currentTarget.getBoundingClientRect();
-        center.current = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
-        const x = e.clientX - center.current.x,
-          y = e.clientY - center.current.y,
-          l = Math.max(1, Math.hypot(x, y) / 37);
-        input.x = x / l / 37;
-        input.z = y / l / 37;
-        setKnob({ x: x / l, y: y / l });
-      }}
-      onPointerMove={(e) => {
-        if (pointer.current !== e.pointerId) return;
-        const x = e.clientX - center.current.x,
-          y = e.clientY - center.current.y,
-          l = Math.max(1, Math.hypot(x, y) / 37);
-        input.x = x / l / 37;
-        input.z = y / l / 37;
-        setKnob({ x: x / l, y: y / l });
-      }}
-      onPointerUp={reset}
-      onPointerCancel={reset}
-      onLostPointerCapture={reset}
-    >
-      <span className="joystick-cross">＋</span>
-      <span
-        className="knob"
-        style={{ transform: `translate(${knob.x}px,${knob.y}px)` }}
-      />
-      <small>移动</small>
-    </div>
-  );
-}
 function Map({ status, save }: { status: Status; save: Save }) {
   const pt = (x: number, z: number) => mapPoint(x, z);
   return (
@@ -229,14 +140,19 @@ const initialStatus: Status = {
   draws: 0,
   nearbyAnimals: [],
 };
-export default function App() {
-  const [save, setSave] = useState<Save>(() => {
-    try {
-      return parseSave(localStorage.getItem(SAVE_KEY));
-    } catch {
-      return initialSave();
-    }
-  });
+function ForestApp({
+  save,
+  dispatch,
+  onLevels,
+  externalPaused,
+  storageError,
+}: {
+  save: Save;
+  dispatch: (a: Action) => void;
+  onLevels: () => void;
+  externalPaused: boolean;
+  storageError: boolean;
+}) {
   const [started, setStarted] = useState(false),
     [ready, setReady] = useState(false),
     [rendererReady, setRendererReady] = useState(false),
@@ -259,7 +175,6 @@ export default function App() {
     ),
     [hint, setHint] = useState(""),
     [notice, setNotice] = useState(""),
-    [storageError, setStorageError] = useState(false),
     [hidden, setHidden] = useState(document.hidden),
     [taskOpen, setTaskOpen] = useState(false),
     [opening, setOpening] = useState(false),
@@ -269,22 +184,14 @@ export default function App() {
     noticeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined),
     openingTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const live = useRef({ save, status, panel, started });
-  live.current = { save, status, panel, started };
-  const paused = !started || panel !== "none" || hidden || !!error;
-  const dispatch = (a: Action) => setSave((s) => transition(s, a));
+  live.current = { save, status, panel, started: started && !externalPaused };
+  const paused =
+    !started || panel !== "none" || hidden || !!error || externalPaused;
   function notify(message: string) {
     setNotice(message);
     clearTimeout(noticeTimer.current);
     noticeTimer.current = setTimeout(() => setNotice(""), 4000);
   }
-  useEffect(() => {
-    try {
-      localStorage.setItem(SAVE_KEY, JSON.stringify(save));
-      setStorageError(false);
-    } catch {
-      setStorageError(true);
-    }
-  }, [save]);
   useEffect(
     () => () => {
       clearTimeout(noticeTimer.current);
@@ -616,6 +523,7 @@ export default function App() {
           <i /> LEVEL 01 <span>森林琥珀保卫战</span>
         </div>
         <div className="header-actions">
+          <button onClick={onLevels}>关卡</button>
           {started && (
             <button aria-label="选择任务" onClick={() => setPanel("tasks")}>
               🧭 <span>任务</span>
@@ -1341,5 +1249,138 @@ export default function App() {
         </div>
       )}
     </main>
+  );
+}
+
+export default function App() {
+  const [save, setSave] = useState<Save>(() => {
+    try {
+      return parseSave(localStorage.getItem(SAVE_KEY));
+    } catch {
+      return initialSave();
+    }
+  });
+  const [levels, setLevels] = useState(
+      () => new URLSearchParams(location.search).get("level") === "2",
+    ),
+    [storageError, setStorageError] = useState(false),
+    [conflict, setConflict] = useState(false),
+    [parentEntry, setParentEntry] = useState(false);
+  const dispatch = (a: Action) => setSave((s) => transition(s, a));
+  useEffect(() => {
+    if (conflict) return;
+    try {
+      const raw = localStorage.getItem(SAVE_KEY),
+        merged = raw ? mergePermanent(save, parseSave(raw)) : save;
+      const serialized = JSON.stringify(merged);
+      localStorage.setItem(SAVE_KEY, serialized);
+      if (serialized !== JSON.stringify(save)) setSave(merged);
+      setStorageError(false);
+    } catch {
+      setStorageError(true);
+    }
+  }, [save, conflict]);
+  useEffect(() => {
+    const change = (e: StorageEvent) => {
+      if (e.key === SAVE_KEY && e.newValue) {
+        clearInput();
+        stopVoice();
+        setConflict(true);
+      }
+    };
+    window.addEventListener("storage", change);
+    return () => window.removeEventListener("storage", change);
+  }, []);
+  useEffect(() => {
+    if (levels || conflict) {
+      clearInput();
+      stopVoice();
+    }
+  }, [levels, conflict]);
+  useEffect(() => {
+    setAudioMuted(save.muted);
+    setEffectsVolume(save.effectsVolume);
+    voiceVolume(save.voiceVolume);
+  }, [save.muted, save.effectsVolume, save.voiceVolume]);
+  const choose = (level: 1 | 2, parentUAT = false) => {
+    clearInput();
+    stopVoice();
+    input.yaw = 0;
+    input.pitch = level === 2 ? 0.4 : 0.48;
+    dispatch({ type: "level", level, parentUAT });
+    setLevels(false);
+    setParentEntry(false);
+  };
+  return (
+    <>
+      {save.activeLevel === 1 ? (
+        <ForestApp
+          save={save}
+          dispatch={dispatch}
+          onLevels={() => setLevels(true)}
+          externalPaused={levels || conflict}
+          storageError={storageError}
+        />
+      ) : (
+        <Suspense fallback={<Loading rendererReady={false} />}>
+          <DesertApp
+            save={save}
+            dispatch={dispatch}
+            onLevels={() => setLevels(true)}
+            externalPaused={levels || conflict}
+            storageError={storageError}
+          />
+        </Suspense>
+      )}
+      {levels && (
+        <div className="level-selection">
+          <section role="dialog" aria-modal="true" aria-label="选择冒险关卡">
+            <h2>下一站去哪里？</h2>
+            <p>外观、工具和永久收藏跨关保留，各关任务分别存档。</p>
+            <button onClick={() => choose(1)}>
+              🌳 第一关 · 森林琥珀保卫战{save.everCompleted ? " ✓ 已通关" : ""}
+            </button>
+            <button
+              disabled={!save.everCompleted && !save.desertAccess}
+              onClick={() => choose(2)}
+            >
+              ☀ 第二关 · 沙漠神殿大迷宫
+              {save.desert.claims.length ? " ✓ 已通关" : ""}
+            </button>
+            {!save.everCompleted && !save.desertAccess && (
+              <>
+                <p>第二关正常入口在第一关通关后解锁。</p>
+                <button onClick={() => setParentEntry(true)}>
+                  家长 UAT：直接体验第二关
+                </button>
+                {parentEntry && (
+                  <div>
+                    <p>
+                      这是家长测试入口。不会把第一关标记为通关，也不会代领第一关奖励。
+                    </p>
+                    <button onClick={() => choose(2, true)}>
+                      我是家长，进入第二关测试
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+            <p>第三至六关仍为设计稿，本次没有开放。</p>
+            <button onClick={() => setLevels(false)}>返回当前关卡</button>
+          </section>
+        </div>
+      )}
+      {conflict && (
+        <div className="level-selection">
+          <section role="alertdialog" aria-label="其他标签页更新了存档">
+            <h2>另一个页面正在冒险</h2>
+            <p>
+              其他标签页更新了存档。这里已暂停，避免覆盖另一页的任务进度。请保留一个游戏页面，然后载入最新存档。
+            </p>
+            <button onClick={() => location.reload()}>载入最新存档</button>
+          </section>
+        </div>
+      )}
+    </>
   );
 }

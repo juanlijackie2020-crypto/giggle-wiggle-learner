@@ -1,0 +1,720 @@
+.desert-shell {
+  --ink: #253c50;
+  --accent: #1d8395;
+  color: #253c50;
+  background: #e4c787;
+}
+.desert-shell .topbar {
+  background: linear-gradient(120deg, #fff4d8f5, #ffe2a5ee);
+  border-bottom: 3px solid #c99a4a;
+}
+.desert-shell .brand-icon {
+  background: #e8b64b;
+  color: #fff8dc;
+}
+.desert-objective {
+  position: absolute;
+  left: 22px;
+  top: 100px;
+  width: 310px;
+  padding: 20px;
+  background: #fff6dfed;
+  border: 2px solid #e8c377;
+  border-radius: 20px;
+  box-shadow: 0 8px 25px #71562325;
+  pointer-events: auto;
+}
+.desert-objective h2 {
+  font-size: 22px;
+  margin: 8px 0 12px;
+}
+.desert-objective p {
+  font-size: 14px;
+  line-height: 1.65;
+  margin: 12px 0 0;
+}
+.tablet-counter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.tablet-counter span {
+  font-size: 13px;
+  padding: 6px;
+  background: #ebdfc5;
+  border-radius: 8px;
+}
+.tablet-counter .found {
+  background: #c0eadb;
+  color: #145c50;
+}
+.tablet-counter strong {
+  width: 100%;
+  font-size: 22px;
+  color: #ba792b;
+}
+.desert-map-button {
+  position: absolute;
+  right: 24px;
+  top: 100px;
+  padding: 10px !important;
+  background: #fff4dce8 !important;
+  border-radius: 16px !important;
+  border: 2px solid #e7c88b !important;
+}
+.desert-map {
+  width: 150px;
+}
+.desert-map svg {
+  display: block;
+  width: 100%;
+}
+.desert-map small {
+  font-size: 10px;
+  display: block;
+  margin-top: 5px;
+}
+.desert-map.large {
+  width: min(100%, 390px);
+  margin: auto;
+}
+.desert-shortcuts {
+  position: absolute;
+  bottom: 24px;
+  left: 180px;
+  display: flex;
+  gap: 8px;
+}
+.desert-shortcuts button {
+  background: #fff1d3e8;
+}
+.desert-controls {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.desert-controls .joystick {
+  pointer-events: auto;
+  position: absolute;
+  left: 24px;
+  bottom: 24px;
+  display: block;
+  background: #fff1d3c9;
+  border-color: #d4ae6d;
+}
+.desert-action-buttons {
+  position: absolute;
+  bottom: 24px;
+  right: 24px;
+  display: grid;
+  grid-template-columns: repeat(3, auto);
+  gap: 10px;
+  pointer-events: auto;
+}
+.desert-action-buttons span {
+  grid-column: 1/-1;
+  text-align: right;
+  background: #fff4dcdd;
+  padding: 8px 15px;
+  border-radius: 12px;
+  font-weight: bold;
+}
+.desert-action-buttons button {
+  min-height: 60px;
+  min-width: 85px;
+  background: #fff3d8;
+}
+.desert-shell .primary,
+.desert-panel .primary {
+  background: #247e90;
+  color: #fff;
+  border-color: #1c6573;
+}
+.desert-overlay {
+  z-index: 25;
+}
+.desert-panel {
+  width: min(860px, 95vw);
+  max-height: 88dvh;
+  overflow: auto;
+  background: linear-gradient(145deg, #fff8e8, #ffedc4);
+  border: 3px solid #e0b66a;
+  padding: 24px;
+}
+.desert-dialog-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+}
+.desert-dialog-heading h2 {
+  margin: 0 0 15px;
+}
+.desert-dialog-heading button {
+  font-size: 28px;
+  min-width: 45px;
+}
+.desert-panel p,
+.desert-panel li {
+  line-height: 1.8;
+}
+.desert-panel button {
+  margin: 4px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid #d9bd88;
+  background: #fff8e9;
+  color: #254154;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 650;
+}
+.desert-panel button[aria-pressed="true"] {
+  outline: 3px solid #278ba0;
+  outline-offset: 1px;
+}
+.desert-panel label {
+  display: block;
+  margin: 16px 0;
+  line-height: 1.8;
+}
+.desert-panel select {
+  font: inherit;
+  padding: 8px;
+  max-width: 100%;
+}
+.desert-welcome-art {
+  font-size: 65px;
+  text-align: center;
+  margin: 10px;
+  background: linear-gradient(180deg, #8addf0, #ffe7ae);
+  border-radius: 20px;
+  padding: 18px;
+}
+.desert-welcome-art span {
+  font-size: 40px;
+  color: #2f8798;
+}
+.desert-toast {
+  position: absolute;
+  z-index: 30;
+  bottom: 135px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: min(90vw, 650px);
+  background: #203f53f0;
+  color: #fff5dc;
+  border: 2px solid #dfb35f;
+  border-radius: 15px;
+  padding: 14px 22px;
+  pointer-events: none;
+  text-align: center;
+}
+.desert-storage {
+  position: absolute;
+  z-index: 50;
+  top: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #fff0cb;
+  padding: 8px;
+  color: #7f381b;
+}
+.desert-choice-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.desert-choice-grid button {
+  flex: 1 1 160px;
+}
+.desert-conversation {
+  font-size: 20px;
+  line-height: 1.9;
+  white-space: pre-line;
+  background: #fffdf1;
+  border-left: 6px solid #2698a5;
+  padding: 20px;
+  margin: 20px 0;
+  border-radius: 12px;
+  min-height: 110px;
+}
+.desert-task-list {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+.desert-task-list article {
+  background: #fff9ed;
+  border: 1px solid #d8b86e;
+  border-radius: 14px;
+  padding: 14px;
+}
+.desert-task-list h3 {
+  margin: 3px;
+}
+.desert-confirm {
+  background: #ffe0a1;
+  border: 2px solid #b88534;
+  padding: 15px;
+  margin-top: 16px;
+  border-radius: 12px;
+}
+.desert-equation {
+  text-align: center;
+  font-size: clamp(32px, 7vw, 62px);
+  font-weight: 800;
+  margin: 24px;
+}
+.desert-answers {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+.desert-answers button {
+  font-size: 28px;
+  min-height: 75px;
+  border: 2px solid #4996a3;
+}
+.desert-hint {
+  background: #f4e3bf;
+  border-radius: 14px;
+  padding: 15px;
+  margin-top: 14px;
+}
+.number-blocks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  align-items: center;
+  margin: 10px 0;
+}
+.number-blocks b {
+  background: #3c969b;
+  color: #fff;
+  padding: 5px 12px;
+  border-radius: 4px;
+}
+.number-blocks i {
+  width: 15px;
+  height: 15px;
+  background: #d89536;
+  border-radius: 50%;
+}
+.number-blocks.remove {
+  border: 2px dashed #b37b45;
+  padding: 10px;
+}
+.desert-celebration {
+  position: absolute;
+  top: 40%;
+  width: 100%;
+  text-align: center;
+  color: #fff6b6;
+  font-size: clamp(22px, 5vw, 48px);
+  font-weight: 800;
+  text-shadow: 0 3px 5px #5e4227;
+  pointer-events: none;
+}
+.desert-avatar-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+.desert-avatar-layout .avatar-preview {
+  min-height: 330px;
+}
+.desert-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.desert-swatches button {
+  width: 36px;
+  height: 36px;
+  border: 2px solid #fff;
+}
+.desert-report {
+  overflow-x: auto;
+}
+.desert-report table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 15px;
+}
+.desert-report td,
+.desert-report th {
+  padding: 12px;
+  border-bottom: 1px solid #d6bd8d;
+  text-align: left;
+}
+.level-selection {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  background: #19374399;
+  padding: 16px;
+}
+.level-selection section {
+  background: #fff5db;
+  border: 3px solid #dfb763;
+  border-radius: 22px;
+  max-width: 680px;
+  max-height: 90dvh;
+  overflow: auto;
+  padding: 28px;
+  color: #254052;
+}
+.level-selection button {
+  font: inherit;
+  padding: 14px;
+  border-radius: 12px;
+  border: 2px solid #4a958d;
+  margin: 8px;
+  background: #f5fff7;
+  cursor: pointer;
+}
+.pack-pagination,
+.pack-filters {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 10px 0;
+}
+.pack-pagination button,
+.pack-filters button {
+  font: inherit;
+  padding: 7px;
+  border-radius: 8px;
+  border: 1px solid #8b9c7e;
+  background: #f5f7df;
+}
+.pack-filters button[aria-pressed="true"] {
+  background: #d7e9b2;
+}
+.desert-shell .header-actions button {
+  min-width: 45px;
+}
+@media (max-width: 700px) {
+  .desert-shell .topbar {
+    padding: 10px;
+    gap: 8px;
+    min-height: 65px;
+  }
+  .desert-shell .brand {
+    font-size: 13px;
+  }
+  .desert-shell .brand small {
+    display: none;
+  }
+  .desert-shell .brand-icon {
+    display: none;
+  }
+  .desert-shell .header-actions {
+    gap: 2px;
+  }
+  .desert-shell .header-actions button {
+    font-size: 12px;
+    padding: 7px;
+    min-width: 34px;
+  }
+  .desert-objective {
+    top: 78px;
+    left: 10px;
+    width: 220px;
+    padding: 12px;
+  }
+  .desert-objective h2 {
+    font-size: 16px;
+    margin: 4px 0;
+  }
+  .desert-objective p {
+    font-size: 11px;
+  }
+  .tablet-counter span {
+    font-size: 10px;
+    padding: 4px;
+  }
+  .tablet-counter strong {
+    font-size: 17px;
+  }
+  .desert-map-button {
+    top: 78px;
+    right: 10px;
+    padding: 5px !important;
+  }
+  .desert-map {
+    width: 85px;
+  }
+  .desert-map small {
+    font-size: 7px;
+  }
+  .desert-shortcuts {
+    left: 10px;
+    bottom: 160px;
+    gap: 4px;
+  }
+  .desert-shortcuts button {
+    font-size: 11px;
+    padding: 7px;
+  }
+  .desert-action-buttons {
+    right: 10px;
+    bottom: 28px;
+    gap: 5px;
+    grid-template-columns: repeat(2, auto);
+  }
+  .desert-action-buttons button {
+    min-width: 65px;
+    min-height: 48px;
+    font-size: 12px;
+  }
+  .desert-action-buttons .primary {
+    grid-column: 1/-1;
+  }
+  .desert-action-buttons span {
+    font-size: 11px;
+    max-width: 190px;
+  }
+  .desert-controls .joystick {
+    left: 18px;
+    bottom: 30px;
+  }
+  .desert-toast {
+    font-size: 13px;
+    bottom: 190px;
+  }
+  .desert-panel {
+    padding: 15px;
+    width: 96vw;
+  }
+  .desert-panel h2 {
+    font-size: 22px;
+  }
+  .desert-task-list {
+    grid-template-columns: 1fr;
+  }
+  .desert-answers {
+    gap: 4px;
+  }
+  .desert-answers button {
+    min-height: 60px;
+    font-size: 24px;
+    padding: 6px;
+  }
+  .desert-avatar-layout {
+    grid-template-columns: 1fr;
+  }
+  .desert-avatar-layout .avatar-preview {
+    min-height: 240px;
+  }
+  .desert-conversation {
+    font-size: 17px;
+    padding: 14px;
+  }
+  .desert-welcome-art {
+    font-size: 48px;
+  }
+  .desert-welcome-art span {
+    font-size: 28px;
+  }
+}
+@media (max-height: 550px) {
+  .desert-objective {
+    top: 76px;
+    padding: 8px;
+  }
+  .desert-objective p {
+    display: none;
+  }
+  .desert-map-button {
+    top: 76px;
+  }
+  .desert-map {
+    width: 75px;
+  }
+  .desert-shortcuts {
+    bottom: 130px;
+  }
+  .desert-panel {
+    max-height: 93dvh;
+  }
+  .desert-action-buttons {
+    bottom: 10px;
+  }
+  .desert-controls .joystick {
+    bottom: 10px;
+  }
+  .desert-toast {
+    bottom: 100px;
+  }
+}
+
+/* Large, explicit controls also work with a mouse; no reliance on mobile-only forest CSS. */
+.desert-controls .joystick {
+  width: 112px;
+  height: 112px;
+  display: grid;
+  place-items: center;
+  border: 2px solid #c3a364;
+  border-radius: 50%;
+  touch-action: none;
+  user-select: none;
+  box-shadow: inset 0 0 20px #795b2615;
+}
+.desert-controls .joystick-cross {
+  color: #94774677;
+  font-size: 60px;
+  pointer-events: none;
+}
+.desert-controls .knob {
+  position: absolute;
+  width: 48px;
+  height: 48px;
+  left: 30px;
+  top: 30px;
+  border-radius: 50%;
+  background: #fff5db;
+  border: 2px solid #c0a36a;
+  box-shadow: 0 4px 10px #80673833;
+  pointer-events: none;
+}
+.desert-controls .joystick small {
+  position: absolute;
+  bottom: -21px;
+  font-size: 11px;
+  color: #254154;
+  text-shadow: none;
+  pointer-events: none;
+}
+.desert-action-buttons button,
+.desert-shortcuts button {
+  font: inherit;
+  border: 2px solid #d4ad68;
+  border-radius: 13px;
+  padding: 12px 16px;
+  box-shadow: 0 4px 0 #ad8847;
+  cursor: pointer;
+  color: #274959;
+  font-weight: 750;
+}
+.desert-action-buttons .primary {
+  background: #247e90;
+  color: #fff;
+  border-color: #196475;
+  box-shadow: 0 4px 0 #164f5c;
+}
+@media (max-width: 700px) {
+  .desert-shell .topbar {
+    left: 5px;
+    right: 5px;
+    top: 5px;
+  }
+  .desert-shell .header-actions button {
+    min-height: 48px;
+    min-width: 48px;
+  }
+  .desert-shell .brand {
+    max-width: 90px;
+    font-size: 13px;
+  }
+  .desert-action-buttons button {
+    padding: 10px;
+    font-size: 13px;
+  }
+  .desert-shortcuts button {
+    min-height: 48px;
+    font-size: 12px;
+    padding: 8px;
+  }
+  .desert-controls .joystick {
+    width: 100px;
+    height: 100px;
+  }
+  .desert-controls .knob {
+    left: 24px;
+    top: 24px;
+  }
+  .desert-objective {
+    top: 76px;
+    width: 210px;
+  }
+  .desert-map-button {
+    top: 76px;
+  }
+  .desert-panel button {
+    min-height: 48px;
+  }
+}
+
+.desert-panel .desert-answers button {
+  font-size: 28px;
+}
+.desert-action-buttons button {
+  font-size: 18px;
+}
+.desert-controls .desert-action-buttons span {
+  font-size: 14px;
+}
+
+/* Keep the desert HUD in one row; inherited forest mobile rules wrap it. */
+@media (max-width: 700px) {
+  .desert-shell .topbar {
+    flex-wrap: nowrap;
+    gap: 5px;
+    padding: 6px;
+  }
+  .desert-shell .brand {
+    width: auto;
+    max-width: 84px;
+    min-width: 0;
+    flex: 1 1 auto;
+    padding: 4px 6px;
+    height: 50px;
+  }
+  .desert-shell .header-actions {
+    width: auto;
+    flex: 0 0 auto;
+    gap: 2px;
+  }
+  .desert-shell .header-actions button {
+    padding: 6px;
+  }
+}
+@media (max-width: 360px) {
+  .desert-shell .brand {
+    display: none;
+  }
+  .desert-shell .header-actions {
+    width: 100%;
+    justify-content: space-around;
+  }
+  .desert-objective {
+    width: 190px;
+  }
+  .desert-map {
+    width: 75px;
+  }
+}
+@media (max-height: 550px) and (orientation: landscape) {
+  .desert-objective {
+    width: 230px;
+    padding: 10px;
+  }
+  .desert-objective h2 {
+    font-size: 18px;
+  }
+  .tablet-counter span {
+    font-size: 11px;
+    padding: 4px;
+  }
+  .tablet-counter strong {
+    font-size: 18px;
+  }
+  .desert-shortcuts {
+    left: 165px;
+    bottom: 20px;
+  }
+}
