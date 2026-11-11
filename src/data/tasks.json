@@ -1,0 +1,41 @@
+[
+  {
+    "id": "friends",
+    "name": "森林好朋友",
+    "type": "动物寻踪",
+    "icon": "🐾",
+    "description": "和小兔子、松鼠各聊一次。选择问候或询问线索。",
+    "steps": ["rabbit", "squirrel"],
+    "labels": ["与小兔子对话", "与松鼠对话"],
+    "badge": "森林知己"
+  },
+  {
+    "id": "explore",
+    "name": "森林发现家",
+    "type": "森林探索",
+    "icon": "🧭",
+    "description": "寻找蓝色发现旗，靠近按互动确认。",
+    "steps": ["bridge", "treehouse", "amber-grove"],
+    "labels": [
+      "桥边安全点 · 河流南岸",
+      "树屋入口 · 过桥后左侧",
+      "琥珀林 · 北方小路"
+    ],
+    "badge": "森林发现家"
+  },
+  {
+    "id": "parkour",
+    "name": "木桩小勇士",
+    "type": "轻量跑酷",
+    "icon": "🌟",
+    "description": "起点在出生点右后方。依次跳上三块木桩，再与终点旗互动。失败可从起点重试。",
+    "steps": ["stump-1", "stump-2", "stump-3", "finish"],
+    "labels": [
+      "跳上第一块木桩",
+      "跳上第二块木桩",
+      "跳上第三块木桩",
+      "终点旗 · 互动完成"
+    ],
+    "badge": "木桩小勇士"
+  }
+]

@@ -1,0 +1,28 @@
+{
+  "id": "desert-math-v1",
+  "difficulties": {
+    "warmup": {
+      "label": "热身 · 20 以内",
+      "max": 20,
+      "minOperand": 0,
+      "requireCrossTen": false
+    },
+    "standard": {
+      "label": "标准 · 50 以内",
+      "max": 50,
+      "minOperand": 10,
+      "requireCrossTen": true
+    },
+    "challenge": {
+      "label": "挑战 · 100 以内",
+      "max": 100,
+      "minOperand": 10,
+      "requireCrossTen": true
+    }
+  },
+  "hints": {
+    "+": "把 {a} 和 {b} 的十位、个位分别合起来，满十再进一。",
+    "−": "从 {a} 拿走 {b}，先看个位够不够，不够就向十位借十。"
+  },
+  "visualHint": "每个长条代表十，每个小圆代表一。加法合并两组，减法从第一组拿走第二组。"
+}

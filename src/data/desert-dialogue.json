@@ -1,0 +1,98 @@
+[
+  {
+    "id": "hero-hello",
+    "speaker": "骞骞",
+    "text": "你好，沙漠里的小伙伴！",
+    "path": "audio/desert/hero-hello.mp3",
+    "language": "zh-CN",
+    "source": "Original script; offline eSpeak NG synthesis"
+  },
+  {
+    "id": "hero-clue",
+    "speaker": "骞骞",
+    "text": "你能帮我找到下一块石板吗？",
+    "path": "audio/desert/hero-clue.mp3",
+    "language": "zh-CN",
+    "source": "Original script; offline eSpeak NG synthesis"
+  },
+  {
+    "id": "hero-guide",
+    "speaker": "骞骞",
+    "text": "阿沙，请带我走一小段吧！",
+    "path": "audio/desert/hero-guide.mp3",
+    "language": "zh-CN",
+    "source": "Original script; offline eSpeak NG synthesis"
+  },
+  {
+    "id": "camel-hello",
+    "speaker": "骆驼阿沙",
+    "text": "你好，我是阿沙！沙漠里也有好多朋友。",
+    "path": "audio/desert/camel-hello.mp3",
+    "language": "zh-CN",
+    "source": "Original script; offline eSpeak NG synthesis"
+  },
+  {
+    "id": "fennec-hello",
+    "speaker": "耳廓狐米米",
+    "text": "你好，我是米米！我的大耳朵听见了你的脚步。",
+    "path": "audio/desert/fennec-hello.mp3",
+    "language": "zh-CN",
+    "source": "Original script; offline eSpeak NG synthesis"
+  },
+  {
+    "id": "lizard-hello",
+    "speaker": "蜥蜴点点",
+    "text": "你好，我是点点！三块石板可以打开神殿的大门。",
+    "path": "audio/desert/lizard-hello.mp3",
+    "language": "zh-CN",
+    "source": "Original script; offline eSpeak NG synthesis"
+  },
+  {
+    "id": "tablet-0-clue",
+    "speaker": "沙漠伙伴",
+    "text": "先找太阳石板。它藏在迷宫西边的尽头。走错路也没关系，地图会记住走过的地方。",
+    "path": "audio/desert/tablet-0-clue.mp3",
+    "language": "zh-CN",
+    "source": "Original script; offline eSpeak NG synthesis"
+  },
+  {
+    "id": "tablet-1-clue",
+    "speaker": "沙漠伙伴",
+    "text": "接下来找月亮石板。它在迷宫东北边。看见有矿石标记的砂岩，拿出工具镐清理它。",
+    "path": "audio/desert/tablet-1-clue.mp3",
+    "language": "zh-CN",
+    "source": "Original script; offline eSpeak NG synthesis"
+  },
+  {
+    "id": "tablet-2-clue",
+    "speaker": "沙漠伙伴",
+    "text": "还差星星石板。它在迷宫西北边的一条小路尽头。普通墙壁不能挖开，要沿通道走。",
+    "path": "audio/desert/tablet-2-clue.mp3",
+    "language": "zh-CN",
+    "source": "Original script; offline eSpeak NG synthesis"
+  },
+  {
+    "id": "all-clue",
+    "speaker": "沙漠伙伴",
+    "text": "石板齐了！去北边中庭，把石板放进神殿门口的机关。",
+    "path": "audio/desert/all-clue.mp3",
+    "language": "zh-CN",
+    "source": "Original script; offline eSpeak NG synthesis"
+  },
+  {
+    "id": "camel-guide",
+    "speaker": "骆驼阿沙",
+    "text": "跟着我，靠近一点我就会继续走。我们先走一小段，之后你再来探险。",
+    "path": "audio/desert/camel-guide.mp3",
+    "language": "zh-CN",
+    "source": "Original script; offline eSpeak NG synthesis"
+  },
+  {
+    "id": "hero-thanks",
+    "speaker": "骞骞",
+    "text": "谢谢你，我们一起出发吧！",
+    "path": "audio/desert/hero-thanks.mp3",
+    "language": "zh-CN",
+    "source": "Original script; offline eSpeak NG synthesis"
+  }
+]

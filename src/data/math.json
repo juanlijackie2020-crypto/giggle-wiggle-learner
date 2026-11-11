@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "count": 3,
+  "difficulties": {
+    "warmup": {
+      "label": "热身 · 10 以内",
+      "max": 10,
+      "requireCrossTen": false
+    },
+    "standard": {
+      "label": "标准 · 20 以内",
+      "max": 20,
+      "requireCrossTen": true
+    },
+    "challenge": {
+      "label": "挑战 · 50 以内",
+      "max": 50,
+      "requireCrossTen": true
+    }
+  },
+  "hints": {
+    "+": "先数 {a} 颗琥珀，再增加 {b} 颗，一起数一数。",
+    "−": "从 {a} 颗琥珀中拿走 {b} 颗，还剩多少？"
+  },
+  "visualHint": "每排最多 10 颗。加法把两组放在一起；减法划掉要拿走的，再数剩下的。"
+}
